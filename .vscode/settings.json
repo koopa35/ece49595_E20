@@ -1,0 +1,9 @@
+{
+    "idf.flashType": "UART",
+    "idf.espIdfPath": "/Users/connorpowell/esp/v5.5.1/esp-idf",
+    "idf.toolsPath": "/Users/connorpowell/.espressif",
+    "idf.pythonInstallPath": "/opt/homebrew/bin/python3",
+    "idf.openOcdConfigs": [
+        "board/esp32-wrover-kit-3.3v.cfg"
+    ]
+}
