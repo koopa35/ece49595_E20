@@ -1,8 +1,0 @@
-# VS Code settings
-.vscode/*
-
-# Build artifacts
-build/*
-
-# OS files
-.DS_Store

@@ -1,2 +1,24 @@
-# OS Specifics
+# VS Code settings
+**/.vscode/*
+
+# Build artifacts
+**/build/
+
+# LTspice simulation output files
+*.raw
+*.log
+*.plt
+*.net
+*.fft
+
+# Autosave / backup files
+*.autosave
+*.bak
+*.tmp
+*.err
+
+# Windows thumbnail files
+Thumbs.db
+
+# Mac system files
 .DS_Store
