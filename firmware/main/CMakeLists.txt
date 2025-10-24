@@ -1,3 +1,4 @@
 idf_component_register(SRCS "main.c"
-                       PRIV_REQUIRES spi_flash esp_lcd esp_timer
-                       INCLUDE_DIRS ".")
+                       INCLUDE_DIRS "."
+                       PRIV_REQUIRES driver S1602A_OLED
+                       )
