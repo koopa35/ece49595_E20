@@ -39,7 +39,7 @@ static void spi_init()
         .mode = 3,
         .clock_speed_hz = 1000000,
         .spics_io_num = CS_PIN,
-        .queue_size = 1,
+        .queue_size = 16,
         .flags = SPI_DEVICE_HALFDUPLEX
     };
 
@@ -52,4 +52,8 @@ void app_main(void){
     vTaskDelay(pdMS_TO_TICKS(100));
     oled_init(spi_oled);
     vTaskDelay(pdMS_TO_TICKS(2000));
+
+    print(spi_oled, "Hello from SPI");
+    set_cursor(spi_oled, 1, 0);
+    print(spi_oled, "Powered by ESP");
 }

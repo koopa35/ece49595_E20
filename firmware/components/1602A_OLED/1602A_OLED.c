@@ -41,7 +41,16 @@ esp_err_t clear(spi_device_handle_t spi_oled)
 esp_err_t home(spi_device_handle_t spi_oled)
 {
     command(spi_oled, OLED_RETURNHOME);
+    vTaskDelay(pdMS_TO_TICKS(1));
     
+    return ESP_OK;
+}
+
+esp_err_t set_cursor(spi_device_handle_t spi_oled, uint8_t row, uint8_t col)
+{
+	command(spi_oled, OLED_SETDDRAMADDR | (row ? 0x40 : 0x00) | (col & 0x3F));
+    vTaskDelay(pdMS_TO_TICKS(1));
+
     return ESP_OK;
 }
 
@@ -57,18 +66,33 @@ esp_err_t send_command_or_data(spi_device_handle_t spi_oled, uint8_t mode, uint8
         .tx_buffer = &tx_word,
     };
 
-    return spi_device_queue_trans(spi_oled, &t, 0);
+    spi_device_queue_trans(spi_oled, &t, 0);
+
+    return ESP_OK;
 }
 
 esp_err_t command(spi_device_handle_t spi_oled, uint8_t cmd)
 {
     send_command_or_data(spi_oled, OLED_COMMAND, cmd);
+    vTaskDelay(pdMS_TO_TICKS(1));
+
     return ESP_OK;
 }
 
 esp_err_t data(spi_device_handle_t spi_oled, uint8_t data_byte)
 {
     send_command_or_data(spi_oled, OLED_DATA, data_byte);
+    vTaskDelay(pdMS_TO_TICKS(1));
+
+    return ESP_OK;
+}
+
+esp_err_t print(spi_device_handle_t spi_oled, const char *str)
+{
+    while (*str) {
+        data(spi_oled, (uint8_t)*str++);
+    }
+
     return ESP_OK;
 }
 
