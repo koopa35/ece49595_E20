@@ -67,3 +67,4 @@ esp_err_t clear(spi_device_handle_t spi_oled);
 esp_err_t home(spi_device_handle_t spi_oled);
 esp_err_t command(spi_device_handle_t spi_oled, uint8_t cmd);
 esp_err_t data(spi_device_handle_t spi_oled, uint8_t data_byte);
+esp_err_t send_command_or_data(spi_device_handle_t spi_oled, uint8_t mode, uint8_t data);

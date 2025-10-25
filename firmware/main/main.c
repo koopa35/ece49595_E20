@@ -40,7 +40,7 @@ static void spi_init()
         .clock_speed_hz = 1000000,
         .spics_io_num = CS_PIN,
         .queue_size = 1,
-        .flags = SPI_DEVICE_HALFDUPLEX,
+        .flags = SPI_DEVICE_HALFDUPLEX
     };
 
     ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &devcfg, &spi_oled));
@@ -48,10 +48,8 @@ static void spi_init()
 
 void app_main(void){
     vTaskDelay(pdMS_TO_TICKS(100));
-
-    oled_init(NULL);
-    vTaskDelay(pdMS_TO_TICKS(2000));
-    
-    clear(NULL);
+    spi_init();
     vTaskDelay(pdMS_TO_TICKS(100));
+    oled_init(spi_oled);
+    vTaskDelay(pdMS_TO_TICKS(2000));
 }
