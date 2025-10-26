@@ -24,7 +24,22 @@ esp_err_t oled_init(spi_device_handle_t spi_oled)
     command(spi_oled, OLED_RETURNHOME);
     vTaskDelay(pdMS_TO_TICKS(2));
     
-    command(spi_oled, OLED_DISPLAYCTRL | OLED_DISPLAYON | OLED_CURSORON | OLED_BLINKON);
+    command(spi_oled, OLED_DISPLAYCTRL | OLED_DISPLAYON | OLED_CURSORON | OLED_BLINKOFF);
+
+    for (int i = 0; i <= 7; i++){
+        uint8_t char_map[] = {
+            (i == 7) ? 0b11111 : 0b00000,
+            (i == 6) ? 0b11111 : 0b00000,
+            (i == 5) ? 0b11111 : 0b00000,
+            (i == 4) ? 0b11111 : 0b00000,
+            (i == 3) ? 0b11111 : 0b00000,
+            (i == 2) ? 0b11111 : 0b00000,
+            (i == 1) ? 0b11111 : 0b00000,
+            (i == 0) ? 0b11111 : 0b00000,
+        };
+
+        custom_char(spi_oled, i, char_map);
+    }
     
     return ESP_OK;
 }
@@ -96,4 +111,15 @@ esp_err_t print(spi_device_handle_t spi_oled, const char *str)
     return ESP_OK;
 }
 
+esp_err_t custom_char(spi_device_handle_t spi_oled, uint8_t location, uint8_t charmap[])
+{
+	location &= 0x7;
+	command(spi_oled, OLED_SETCGRAMADDR | (location << 3));
+	for (int i=0; i<8; i++) {
+		data(spi_oled, charmap[i]);
+	}
 
+    vTaskDelay(pdMS_TO_TICKS(1));
+
+    return ESP_OK;
+}

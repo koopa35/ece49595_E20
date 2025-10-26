@@ -70,3 +70,4 @@ esp_err_t command(spi_device_handle_t spi_oled, uint8_t cmd);
 esp_err_t data(spi_device_handle_t spi_oled, uint8_t data_byte);
 esp_err_t send_command_or_data(spi_device_handle_t spi_oled, uint8_t mode, uint8_t data);
 esp_err_t print(spi_device_handle_t spi_oled, const char *str);
+esp_err_t custom_char(spi_device_handle_t spi_oled, uint8_t location, uint8_t charmap[]);
