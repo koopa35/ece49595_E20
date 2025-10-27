@@ -79,7 +79,7 @@ void app_main(void){
         }
 
         freq(spi_oled, spectrum, num_bars);
-        vTaskDelay(pdMS_TO_TICKS(200));
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
     
     

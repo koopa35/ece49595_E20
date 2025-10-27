@@ -106,13 +106,13 @@ esp_err_t oled_init(spi_device_handle_t spi_oled)
         0b11111
     };    
 
-    custom_char(spi_oled, 2, char_map1);
-    custom_char(spi_oled, 3, char_map2);
-    custom_char(spi_oled, 4, char_map3);
-    custom_char(spi_oled, 5, char_map4);
-    custom_char(spi_oled, 6, char_map5);
-    custom_char(spi_oled, 7, char_map6);
-    custom_char(spi_oled, 8, char_map7);
+    custom_char(spi_oled, 1, char_map1);
+    custom_char(spi_oled, 2, char_map2);
+    custom_char(spi_oled, 3, char_map3);
+    custom_char(spi_oled, 4, char_map4);
+    custom_char(spi_oled, 5, char_map5);
+    custom_char(spi_oled, 6, char_map6);
+    custom_char(spi_oled, 7, char_map7);
 
     return ESP_OK;
 }
@@ -202,16 +202,19 @@ esp_err_t custom_char(spi_device_handle_t spi_oled, uint8_t location, uint8_t ch
 
 esp_err_t freq(spi_device_handle_t spi_oled, uint8_t *spectrum, size_t len)
 {
-    clear(spi_oled);
+    command(spi_oled, OLED_RETURNHOME);
 
-    for (size_t i = 0; i < len; i++)
-    {
-        set_cursor(spi_oled, 1, i);
-        if (spectrum[i] == 0) {}
-        else {
-            data(spi_oled, spectrum[i] == 8 ? 255 : spectrum[i] + 1);
+    char line[17] = {0};
+    for (size_t i = 0; i < len && i < 16; i++) {
+        if (spectrum[i] == 0) {
+            line[i] = ' ';
+        } else {
+            line[i] = (spectrum[i] == 8 ? 255 : spectrum[i]);
         }
     }
+
+    set_cursor(spi_oled, 1, 0);
+    print(spi_oled, line);
 
     return ESP_OK;
 }
