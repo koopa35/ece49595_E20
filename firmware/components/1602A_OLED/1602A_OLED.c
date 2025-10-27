@@ -9,6 +9,8 @@
 
 esp_err_t oled_init(spi_device_handle_t spi_oled)
 {
+    vTaskDelay(pdMS_TO_TICKS(300));
+
     command(spi_oled, OLED_FUNCTIONSET | OLED_8BITMODE | OLED_LANG_EN);
     vTaskDelay(pdMS_TO_TICKS(1));
     
@@ -16,7 +18,7 @@ esp_err_t oled_init(spi_device_handle_t spi_oled)
     vTaskDelay(pdMS_TO_TICKS(1));
     
     command(spi_oled, OLED_CLEARDISPLAY);
-    vTaskDelay(pdMS_TO_TICKS(2));
+    vTaskDelay(pdMS_TO_TICKS(300));
     
     command(spi_oled, OLED_ENTRYMODESET | OLED_ENTRYLEFT | OLED_ENTRYSHIFTDEC);
     vTaskDelay(pdMS_TO_TICKS(1));
@@ -24,30 +26,101 @@ esp_err_t oled_init(spi_device_handle_t spi_oled)
     command(spi_oled, OLED_RETURNHOME);
     vTaskDelay(pdMS_TO_TICKS(2));
     
-    command(spi_oled, OLED_DISPLAYCTRL | OLED_DISPLAYON | OLED_CURSORON | OLED_BLINKOFF);
+    command(spi_oled, OLED_DISPLAYCTRL | OLED_DISPLAYON | OLED_CURSOROFF | OLED_BLINKOFF);
 
-    for (int i = 0; i <= 7; i++){
-        uint8_t char_map[] = {
-            (i == 7) ? 0b11111 : 0b00000,
-            (i == 6) ? 0b11111 : 0b00000,
-            (i == 5) ? 0b11111 : 0b00000,
-            (i == 4) ? 0b11111 : 0b00000,
-            (i == 3) ? 0b11111 : 0b00000,
-            (i == 2) ? 0b11111 : 0b00000,
-            (i == 1) ? 0b11111 : 0b00000,
-            (i == 0) ? 0b11111 : 0b00000,
-        };
+    uint8_t char_map1[] = {
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b11111
+    };
 
-        custom_char(spi_oled, i, char_map);
-    }
-    
+    uint8_t char_map2[] = {
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b11111,
+        0b11111
+    };
+
+    uint8_t char_map3[] = {
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b11111,
+        0b11111,
+        0b11111
+    };
+
+    uint8_t char_map4[] = {
+        0b00000,
+        0b00000,
+        0b00000,
+        0b00000,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111
+    };
+
+
+    uint8_t char_map5[] = {
+        0b00000,
+        0b00000,
+        0b00000,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111
+    };
+
+    uint8_t char_map6[] = {
+        0b00000,
+        0b00000,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111
+    };
+
+    uint8_t char_map7[] = {
+        0b00000,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111,
+        0b11111
+    };    
+
+    custom_char(spi_oled, 2, char_map1);
+    custom_char(spi_oled, 3, char_map2);
+    custom_char(spi_oled, 4, char_map3);
+    custom_char(spi_oled, 5, char_map4);
+    custom_char(spi_oled, 6, char_map5);
+    custom_char(spi_oled, 7, char_map6);
+    custom_char(spi_oled, 8, char_map7);
+
     return ESP_OK;
 }
 
 esp_err_t clear(spi_device_handle_t spi_oled)
 {
     command(spi_oled, OLED_CLEARDISPLAY);
-    vTaskDelay(pdMS_TO_TICKS(6));
+    vTaskDelay(pdMS_TO_TICKS(2));
     home(spi_oled);
 
     return ESP_OK;
@@ -56,7 +129,7 @@ esp_err_t clear(spi_device_handle_t spi_oled)
 esp_err_t home(spi_device_handle_t spi_oled)
 {
     command(spi_oled, OLED_RETURNHOME);
-    vTaskDelay(pdMS_TO_TICKS(1));
+    vTaskDelay(pdMS_TO_TICKS(2));
     
     return ESP_OK;
 }
@@ -64,7 +137,7 @@ esp_err_t home(spi_device_handle_t spi_oled)
 esp_err_t set_cursor(spi_device_handle_t spi_oled, uint8_t row, uint8_t col)
 {
 	command(spi_oled, OLED_SETDDRAMADDR | (row ? 0x40 : 0x00) | (col & 0x3F));
-    vTaskDelay(pdMS_TO_TICKS(1));
+    vTaskDelay(pdMS_TO_TICKS(20));
 
     return ESP_OK;
 }
@@ -119,7 +192,26 @@ esp_err_t custom_char(spi_device_handle_t spi_oled, uint8_t location, uint8_t ch
 		data(spi_oled, charmap[i]);
 	}
 
-    vTaskDelay(pdMS_TO_TICKS(1));
+    vTaskDelay(pdMS_TO_TICKS(2));
+
+    command(spi_oled, OLED_SETDDRAMADDR | 0x00);
+    vTaskDelay(pdMS_TO_TICKS(2));
+
+    return ESP_OK;
+}
+
+esp_err_t freq(spi_device_handle_t spi_oled, uint8_t *spectrum, size_t len)
+{
+    clear(spi_oled);
+
+    for (size_t i = 0; i < len; i++)
+    {
+        set_cursor(spi_oled, 1, i);
+        if (spectrum[i] == 0) {}
+        else {
+            data(spi_oled, spectrum[i] == 8 ? 255 : spectrum[i] + 1);
+        }
+    }
 
     return ESP_OK;
 }

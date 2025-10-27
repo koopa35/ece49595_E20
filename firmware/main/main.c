@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/lock.h>
 #include <sys/param.h>
 #include "freertos/FreeRTOS.h"
@@ -53,7 +54,34 @@ void app_main(void){
     oled_init(spi_oled);
     vTaskDelay(pdMS_TO_TICKS(2000));
 
-    print(spi_oled, "Hello from SPI");
-    set_cursor(spi_oled, 1, 0);
-    print(spi_oled, "Powered by ESP");
-}
+    // set_cursor(spi_oled, 0, 0);
+    // print(spi_oled, "Hello from SPI");
+    // set_cursor(spi_oled, 1, 0);
+    // print(spi_oled, "Powered by ESP");
+    // vTaskDelay(pdMS_TO_TICKS(1000));
+
+    // clear(spi_oled);
+    // uint8_t arr[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1, 0};
+    // freq(spi_oled, arr, 16);
+
+    const int num_bars = 16;
+    uint8_t spectrum[num_bars];
+
+    srand(time(NULL));
+    clear(spi_oled);
+    
+
+    while (1)
+    {
+        for (int i = 0; i < num_bars; i++)
+        {
+            spectrum[i] = rand() % 8;
+        }
+
+        freq(spi_oled, spectrum, num_bars);
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+    
+    
+    }
+    
