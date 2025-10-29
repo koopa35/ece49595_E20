@@ -1,7 +1,6 @@
 #pragma once
 
 #include "driver/spi_master.h"
-#include "driver/gpio.h"
 #include "esp_err.h"
 #include <stdint.h>
 
@@ -47,20 +46,6 @@
 #define OLED_LANG_EU1       0x01
 #define OLED_LANG_RU        0x02
 #define OLED_LANG_EU2       0x03
-
-// Driver context
-typedef struct {
-    spi_device_handle_t spi;
-    gpio_num_t dc_pin;
-    gpio_num_t reset_pin;
-    gpio_num_t cs_pin;
-
-    uint8_t display_function;
-    uint8_t display_control;
-    uint8_t display_mode;
-    uint8_t cols;
-    uint8_t rows;
-} silvervest_oled_t;
 
 esp_err_t oled_init(spi_device_handle_t spi_oled);
 esp_err_t clear(spi_device_handle_t spi_oled);

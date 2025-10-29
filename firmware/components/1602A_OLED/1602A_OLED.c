@@ -3,9 +3,7 @@
 #include "freertos/task.h"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "driver/gpio.h"
 #include "1602A_OLED.h"
-
 
 esp_err_t oled_init(spi_device_handle_t spi_oled)
 {
@@ -202,7 +200,7 @@ esp_err_t custom_char(spi_device_handle_t spi_oled, uint8_t location, uint8_t ch
 
 esp_err_t freq(spi_device_handle_t spi_oled, uint8_t *spectrum, size_t len)
 {
-    chome(spi_oled);
+    home(spi_oled);
 
     char line[17] = {0};
     for (size_t i = 0; i < len && i < 16; i++) {
