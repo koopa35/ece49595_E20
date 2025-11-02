@@ -151,7 +151,7 @@ esp_err_t send_command_or_data(spi_device_handle_t spi_oled, uint8_t mode, uint8
         .tx_buffer = &tx_word,
     };
 
-    spi_device_queue_trans(spi_oled, &t, 0);
+    spi_device_queue_trans(spi_oled, &t, portMAX_DELAY);
 
     return ESP_OK;
 }
