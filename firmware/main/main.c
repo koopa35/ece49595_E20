@@ -47,7 +47,7 @@ void app_main(void){
         .pin_a = GPIO_NUM_1,
         .pin_b = GPIO_NUM_2,
         .button_pin = GPIO_NUM_42,
-        .debounce_ms = 50,
+        .debounce_ms = 100,
         .hold_time_ms = 1000
     };
 
@@ -55,7 +55,7 @@ void app_main(void){
         .pin_a = GPIO_NUM_47,
         .pin_b = GPIO_NUM_21,
         .button_pin = GPIO_NUM_20,
-        .debounce_ms = 50,
+        .debounce_ms = 100,
         .hold_time_ms = 1000
     };
 
