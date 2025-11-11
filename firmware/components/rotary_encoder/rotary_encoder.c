@@ -40,7 +40,7 @@ esp_err_t rotary_init(rotary_config_t *encoder) {
 
     // Pins A and B
     gpio_config_t io_conf = {
-        .intr_type = GPIO_INTR_ANYEDGE,
+        .intr_type = GPIO_INTR_NEGEDGE,
         .mode = GPIO_MODE_INPUT,
         .pin_bit_mask = (1ULL << encoder->pin_a) | (1ULL << encoder->pin_b),
     };
