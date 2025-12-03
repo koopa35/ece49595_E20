@@ -24,22 +24,26 @@
 #define MOSI_PIN 5
 #define SCLK_PIN 4
 #define CS_PIN 6
-#define TEST_BUF_SIZE 64
 
+#define NUM_BANDS 8
 #define FIR_COEFFS_LEN 64
 
-fir_f32_t fir1;
+float eq_gains[NUM_BANDS] = {1.0, 0.5, 1.0, 0.5, 0, 0, 1.0, 1.0};
+float band_edges[NUM_BANDS + 1] = {0, 350.0, 1100.0, 2200.0, 4000.0, 6000.0, 8000.0, 10500.0, SAMPLE_RATE/2};
+int freq_bins[] = {0, 100, 350, 700, 1100, 1600, 2200, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10500, 12000, SAMPLE_RATE/2};
+
+fir_f32_t fir_handles[NUM_BANDS];
+fir_f32_t fir_low;
+fir_f32_t fir_mid;
+fir_f32_t fir_high;
 const int32_t fir_len = FIR_COEFFS_LEN;
-const float f_low = 5000.0;
 const int32_t fir_decim = 1;
 
-static __attribute__((aligned(16))) float fir_coeffs[FIR_COEFFS_LEN];
-static __attribute__((aligned(16))) float fir_mid_coeffs[FIR_COEFFS_LEN];
-static __attribute__((aligned(16))) float fir_high_coeffs[FIR_COEFFS_LEN];
+static __attribute__((aligned(16))) float fir_coeffs[NUM_BANDS][FIR_COEFFS_LEN];
+
 static __attribute__((aligned(16))) float delay_line[FIR_COEFFS_LEN];
 static __attribute__((aligned(16))) float fir_out[BUF_SIZE];
 static __attribute__((aligned(16))) float fir_in[BUF_SIZE];
-
 
 static int16_t output_buffer_0[BUF_SIZE];
 static int16_t output_buffer_1[BUF_SIZE];
@@ -51,11 +55,13 @@ static volatile uint32_t buffer_read_index = 0;
 static volatile uint32_t buffer_length = BUF_SIZE;
 static volatile bool buffer_swap_ready = false;
 
+int32_t running_buf_avg = 0;
+
 static QueueHandle_t process_queue = NULL;
 static QueueHandle_t oled_queue = NULL;
 
-int freq_bins[] = {0, 100, 350, 700, 1100, 1500, 2000, 3800, 5500, 7000, 9000, 11000, 13000, 15000, 17000, 19000, SAMPLE_RATE/2};
 __attribute__((aligned(16))) float window[BUF_SIZE];
+__attribute__((aligned(16))) float spectrum[2 * BUF_SIZE];
 __attribute__((aligned(16))) float spec_binned[NUM_BINS];
 
 adc_continuous_handle_t adc_handle = NULL;
@@ -80,10 +86,6 @@ bool IRAM_ATTR example_timer_callback(gptimer_handle_t timer, const gptimer_alar
 {
     sdm_channel_handle_t sdm_chan = (sdm_channel_handle_t)user_ctx;
 
-    //static uint32_t cnt = 0;
-    //sdm_channel_set_pulse_density(sdm_chan, sine_wave[cnt++]);
-    //cnt = cnt >= BUF_SIZE ? 0 : cnt;
-
     int16_t sample = playing_buffer[buffer_read_index];
 
     int8_t pulse_den = (int8_t)(sample / 8); // convert 16bit to 8bit
@@ -102,10 +104,11 @@ bool IRAM_ATTR example_timer_callback(gptimer_handle_t timer, const gptimer_alar
             filling_buffer = temp;
             
             buffer_swap_ready = false;
+            BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+            xSemaphoreGiveFromISR(buffer_swap_sem, &xHigherPriorityTaskWoken);
+            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
         }
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        xSemaphoreGiveFromISR(buffer_swap_sem, &xHigherPriorityTaskWoken);
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+
     }
     
     return false;
@@ -172,11 +175,57 @@ void generate_FIR_coefficients(float *fir_coeffs, const unsigned int fir_len, co
             fir_coeffs[i] = sinf((2 * M_PI * ft * (i - fir_order / 2))) / (M_PI * (i - fir_order / 2));
         }
 
+        if ((!is_odd) && ((i == fir_len /2)))
+        {
+            fir_coeffs[i] += 0.25;
+        }
+
         fir_coeffs[i] *= fir_window[i];
     }
 
     free(fir_window);
 }
+
+void generate_EQ_filters(int N_band, int N_fir, float* gains_arr, float* edges, float* delay)
+{
+    for (int i = 0; i < N_band; i++)
+    {
+        float temp1[N_fir];
+        generate_FIR_coefficients(temp1, N_fir, edges[i+1]/ SAMPLE_RATE);
+        float temp2[N_fir];
+        generate_FIR_coefficients(temp2, N_fir, edges[i]/ SAMPLE_RATE);
+        for (int j = 0; j < N_fir; j++)
+        {
+            fir_coeffs[i][j] = temp1[j] - temp2[j];
+        }
+        if (ESP_OK == dsps_fir_init_f32(&fir_handles[i], fir_coeffs[i], delay, N_fir))
+        {
+            ESP_LOGI(TAG, "Successfully Created BPF. Range [%.0f, %.0f] Gain %.2f", edges[i], edges[i+1], gains_arr[i]);
+        }
+        else
+        {
+            ESP_LOGI(TAG, "Error!! Could not create BPF. Range [%.0f, %.0f] Gain %.2f", edges[i], edges[i+1], gains_arr[i]);
+        }
+    }
+}
+
+void apply_EQ(int N_buf, int N_band, float* fir_out, float* eq_gains, fir_f32_t* fir_handle_arr)
+{
+    memset(fir_out, 0, N_buf * sizeof(*fir_out));
+
+    float temp_out[N_buf];
+    for (int i = 0; i < N_band; i++)
+    {
+        dsps_fir_f32(&fir_handle_arr[i], fir_in, temp_out, N_buf);
+
+        for (int j = 0; j < N_buf; j++)
+        {
+            fir_out[j] += temp_out[j] * eq_gains[i];
+        }
+    }
+}
+
+
 
 //--------------------------ENTRANCE GATEWAY----------------------------
 
@@ -200,14 +249,13 @@ void app_main(void)
     spectrum_mutex = xSemaphoreCreateMutex();
 
     //----------FFT INITIALIZATIONS-------
-    dsps_wind_hann_f32(window, BUF_SIZE); // generate hann window for fft
+    dsps_wind_blackman_f32(window, BUF_SIZE); // generate hann window for fft
     ESP_ERROR_CHECK(dsps_fft2r_init_fc32(NULL, 2*BUF_SIZE)); // Initialize FFT2R
     ESP_ERROR_CHECK(dsps_fft4r_init_fc32(NULL, 2*BUF_SIZE)); // Initialize FFT2R
     ESP_LOGI(TAG, "CPU FREQ %ld", cpu_freq);
 
     //-----------------FIR INITIALIZATION---------------------
-    generate_FIR_coefficients(fir_coeffs, fir_len, f_low / SAMPLE_RATE);
-    dsps_fir_init_f32(&fir1, fir_coeffs, delay_line, fir_len);
+    generate_EQ_filters(NUM_BANDS, FIR_COEFFS_LEN, eq_gains, band_edges, delay_line);
     ESP_LOGI(TAG, "FIR INITIALIZED -- COEFFICIENTS SET");
     
     //-----------------SDM INITIALIZATION--------------------
@@ -215,9 +263,7 @@ void app_main(void)
     sdm_chan = example_init_sdm();
     /* Initialize GPTimer and register the timer alarm callback */
     gptimer_handle_t timer_handle = example_init_gptimer(sdm_chan);
-    /* Start the GPTimer */
-    ESP_LOGI(TAG, "Output start");
-    ESP_ERROR_CHECK(gptimer_start(timer_handle));
+
 
     //----------BUFFER QUEUE INIT FOR DATA TRANSFER----------
     process_queue = xQueueCreate(4, sizeof(DataBlock));
@@ -227,7 +273,7 @@ void app_main(void)
 #ifdef CONFIG_INPUT_SOURCE_AUX
     xTaskCreate(task_adc_sample, "ADC Sampling", 4096, NULL, 3, &sampling_task_handle);
 #endif
-    xTaskCreate(task_get_spectrum, "Get Spectrum", 16384, NULL, 6, &processing_task_handle);
+    xTaskCreate(task_dsp, "DSP", 16384, NULL, 6, &processing_task_handle);
 
 #ifdef CONFIG_INPUT_SOURCE_AUX
     //--------- INIT ADC & CALLBACK ------------------------------
@@ -242,7 +288,10 @@ void app_main(void)
     ESP_ERROR_CHECK(adc_continuous_start(adc_handle));
     ESP_LOGI(TAG, "Succesfully Started ADC in Continuous Mode");
 #endif
-
+    /* Start the GPTimer */
+    vTaskDelay(pdMS_TO_TICKS(500));
+    ESP_LOGI(TAG, "Output start");
+    ESP_ERROR_CHECK(gptimer_start(timer_handle));
     while(true)
     {
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -271,32 +320,23 @@ void task_adc_sample(void *pvParameters)
             {
                 adc_digi_output_data_t *p = (adc_digi_output_data_t *)&result[i*sizeof(adc_digi_output_data_t)]; 
                 uint32_t raw = p->type2.data;
-                block.data[i]  = (int16_t)raw - 1094; 
+                block.data[i]  = (int16_t)raw; // - 1094; 
                 buf_sum += block.data[i];
-                if (i % 100 == 0)
-                {
-                    ESP_LOGI(TAG, "raw: %d, converted : %d", raw, (block.data[i] / 8));
-                }
             }
 
+            running_buf_avg = buf_sum / BUF_SIZE;
             // send buffer to process
             if(xQueueSend(process_queue, &block, portMAX_DELAY) != pdPASS)
             {
                 ESP_LOGE(TAG, "PROCESS QUEUE FULL -- DSP TOO SLOW");
             }
-            else
-            {
-                ESP_LOGI(TAG, "SENT BUFFER: ADC -> DSP");
-            }
         }
     }
 } 
 
-void task_get_spectrum(void *pvParameters)
+void task_dsp(void *pvParameters)
 {
     int N = BUF_SIZE;
-    float spectrum[2*BUF_SIZE];
-    float spec_binned[NUM_BINS];
     float sample_spacing = 1.0 / SAMPLE_RATE;
     int count = 0;
     DataBlock adc_block;
@@ -314,32 +354,32 @@ void task_get_spectrum(void *pvParameters)
             memcpy(dsp_block.data, adc_block.data, adc_block.length * sizeof(int16_t));
             dsp_block.length = adc_block.length;     
 
+            unsigned int start = dsp_get_cpu_cycle_count(); // start time
+
+            // convert adc ints to floats for filtering
             for (int i = 0; i < BUF_SIZE; i++)
             {
-                fir_in[i] = (float) dsp_block.data[i];
+                fir_in[i] = (float) (dsp_block.data[i] - running_buf_avg);
             }
 
-            dsps_fir_f32(&fir1, fir_in, fir_out, BUF_SIZE);
+            apply_EQ(BUF_SIZE, NUM_BANDS, fir_out, eq_gains, fir_handles); // FILTERING 
 
+            unsigned int start2 = dsp_get_cpu_cycle_count(); // start time
+            //filling filtered signals out to output & spectrum
             for (int i = 0; i < BUF_SIZE; i++)
             {
                 filling_buffer[i] = (int16_t) fir_out[i];
                 dsp_block.data[i] = (int16_t) fir_out[i];
             }
-
-           // memcpy((void*) filling_buffer, fir_out, FIR_BUFF_OUT_LEN * sizeof(float));
             buffer_length = adc_block.length; 
             buffer_swap_ready = true;
 
-            unsigned int start = dsp_get_cpu_cycle_count(); // start time
-            //ESP_LOGI(TAG, "received buffer from DMA, processing..");
             fft(dsp_block.length, dsp_block.data, spectrum, sample_spacing);
-            //ESP_LOGI(TAG, "FFT COMPLETE");
             spec2bins(N, NUM_BINS, spectrum, spec_binned);
-            //ESP_LOGI(TAG, "Conversion to Bins Complete");
+
             unsigned int end = dsp_get_cpu_cycle_count(); // end time
                                                           
-            ESP_LOGI(TAG, "Processing Complete (Buf Size = %d). Duration: %f ms", BUF_SIZE, 1000*(end - start)/ (float)cpu_freq);
+            //ESP_LOGI(TAG, "Processing Complete (ADC Avg Signal = %d) (Buf Size = %d). EQ Duration: %f ms Total Duration: %f ms", running_buf_avg, BUF_SIZE, 1000 *(end - start2)/ (float)cpu_freq, 1000*(end - start)/ (float)cpu_freq); // UNCOMMENT AT YOUR OWN RISK ESP_LOGI ARE EXPENSIVE
             count++;
 
             if (count == 20)
@@ -351,7 +391,11 @@ void task_get_spectrum(void *pvParameters)
                     xSemaphoreGive(spectrum_mutex);
                 }
             }
-            xSemaphoreTake(buffer_swap_sem, portMAX_DELAY);
+
+            if (xSemaphoreTake(buffer_swap_sem, pdMS_TO_TICKS(1000)) == pdFAIL)
+            {
+                ESP_LOGW(TAG, "Buffer swap timeout - timer may have stalled");
+            }
         }
     }
 
@@ -359,7 +403,6 @@ void task_get_spectrum(void *pvParameters)
 
 void fft(int N, int16_t* x, float* spectrum, float delta)
 {
-    //ESP_LOGI(TAG, "Starting FFT with BUFFER SIZE %d", N);
 
     __attribute__((aligned(16))) float fft_buf[2*N]; 
     // apply hann window to signal
@@ -413,7 +456,7 @@ void task_oled(void *pvParameters)
         {
             memcpy(spec_binned, latest_spectrum, sizeof(spec_binned));
             xSemaphoreGive(spectrum_mutex);
-            ESP_LOGI(TAG, "pushing to oled");
+            //ESP_LOGI(TAG, "pushing to oled");
             print_to_OLED(NUM_BINS, spec_binned);
         }
     }

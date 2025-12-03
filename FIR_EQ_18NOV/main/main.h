@@ -23,7 +23,7 @@ typedef struct {
 
 void fft(int, int16_t*, float*, float);
 void spec2bins(int N, int N_bins, float* spectrum, float* spectrum_binned);
-void task_get_spectrum(void*);
+void task_dsp(void*);
 void task_adc_sample(void*);
 void print_to_OLED(int, float*);
 void plot_spec_to_lcd(int N_bins, float* spectrum);
