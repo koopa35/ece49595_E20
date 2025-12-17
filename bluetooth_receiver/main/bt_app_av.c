@@ -215,7 +215,6 @@ void bt_i2s_driver_install(void)
         .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(44100),
         .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
         .gpio_cfg = {
-            .mclk = GPIO_NUM_2,
             .bclk = CONFIG_EXAMPLE_I2S_BCK_PIN,
             .ws = CONFIG_EXAMPLE_I2S_LRCK_PIN,
             .dout = CONFIG_EXAMPLE_I2S_DATA_PIN,
