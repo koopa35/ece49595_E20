@@ -12,8 +12,10 @@ typedef struct {
     int64_t last_button_time;   // For debounce
     bool button_down;           // Button Pressed
     pcnt_unit_handle_t pcnt;    // Handle for pulse counter
+
 } rotary_config_t;
 
 esp_err_t pcnt_init(rotary_config_t *encoder);
 esp_err_t rotary_init(rotary_config_t *encoder);
-bool rotary_button_pressed(rotary_config_t *encoder);
+bool check_rotary_button_pressed(rotary_config_t *encoder);
+int get_rotary_delta(rotary_config_t *encoder);

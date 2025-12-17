@@ -58,14 +58,20 @@ esp_err_t pcnt_init(rotary_config_t *encoder) {
     ESP_ERROR_CHECK(pcnt_channel_set_edge_action(pcnt_chan_b, PCNT_CHANNEL_EDGE_ACTION_INCREASE, PCNT_CHANNEL_EDGE_ACTION_DECREASE));
     ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP, PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
 
+    ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
+    ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
+    ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
+
     return ESP_OK;
 }
 
-// Encoder init
+// Rotary init
 esp_err_t rotary_init(rotary_config_t *encoder) {
     if (!encoder) return ESP_ERR_INVALID_ARG;
 
-    // Add PIN A and PIN B
+    // PCNT start
+    ESP_LOGI(TAG, "starting pcnt unit");
+    ESP_ERROR_CHECK(pcnt_init(encoder));
 
     // Button pin
     gpio_config_t btn_conf = {
@@ -93,9 +99,17 @@ esp_err_t rotary_init(rotary_config_t *encoder) {
     return ESP_OK;
 }
 
-bool rotary_button_pressed(rotary_config_t *encoder) {
+bool check_rotary_button_pressed(rotary_config_t *encoder) {
     if (!encoder) return false;
     bool pressed = encoder->button_down;
     encoder->button_down = false; // clear after reading
     return pressed;
+}
+
+int get_rotary_delta(rotary_config_t *encoder) {
+    if (!encoder) return 0;
+    int delta = 0;
+    pcnt_unit_get_count(encoder->pcnt, &delta);
+    pcnt_unit_clear_count(encoder->pcnt); // clear after reading
+    return delta;
 }
