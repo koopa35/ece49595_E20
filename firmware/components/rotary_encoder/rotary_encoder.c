@@ -11,7 +11,7 @@ static bool isr_service_installed = false;
 static void IRAM_ATTR rotary_button_isr(void *arg) {
     rotary_config_t *encoder = (rotary_config_t *)arg;
 
-    int64_t now = esp_timer_get_time() / 1000; // ms
+    int64_t now = esp_timer_get_time() / 1000;
     if (now - encoder->last_button_time > encoder->debounce_ms) {
         encoder->button_down = true;
         encoder->last_button_time = now;
@@ -85,6 +85,10 @@ esp_err_t rotary_init(rotary_config_t *encoder) {
     // State variables
     encoder->button_down = false;
     encoder->last_button_time = esp_timer_get_time() / 1000;
+    encoder->last_rotation_time = esp_timer_get_time() / 1000;
+    if (encoder->rotation_debounce_ms == 0) {
+        encoder->rotation_debounce_ms = 50; // Default 50ms
+    }
 
     if (!isr_service_installed) {
         gpio_install_isr_service(0);
@@ -101,9 +105,31 @@ esp_err_t rotary_init(rotary_config_t *encoder) {
 
 bool check_rotary_button_pressed(rotary_config_t *encoder) {
     if (!encoder) return false;
-    bool pressed = encoder->button_down;
+    
+    // Check button ISR
+    if (!encoder->button_down) {
+        return false;
+    }
+    
+    // Verify button
+    int level = gpio_get_level(encoder->button_pin);
+    if (level != 0) {
+        // False trigger, clear the flag
+        encoder->button_down = false;
+        return false;
+    }
+    
+    int64_t now = esp_timer_get_time() / 1000;
+    int64_t time_since_rotation = now - encoder->last_rotation_time;
+    
+    if (time_since_rotation < (encoder->rotation_debounce_ms + 20)) {
+        encoder->button_down = false; // Clear flag
+        return false;
+    }
+    
+    // Valid button press
     encoder->button_down = false; // clear after reading
-    return pressed;
+    return true;
 }
 
 int get_rotary_delta(rotary_config_t *encoder) {
@@ -112,4 +138,35 @@ int get_rotary_delta(rotary_config_t *encoder) {
     pcnt_unit_get_count(encoder->pcnt, &delta);
     pcnt_unit_clear_count(encoder->pcnt); // clear after reading
     return delta;
+}
+
+// Get normalized rotation direction with debounce
+int get_rotary_direction(rotary_config_t *encoder) {
+    if (!encoder) return 0;
+    
+    int64_t now = esp_timer_get_time() / 1000; // ms
+    
+    // Get accumulated delta first
+    int delta = 0;
+    pcnt_unit_get_count(encoder->pcnt, &delta);
+    
+    // Check debounce time
+    if (now - encoder->last_rotation_time < encoder->rotation_debounce_ms) {
+        if (delta != 0) {
+            encoder->last_rotation_time = now;
+        }
+        pcnt_unit_clear_count(encoder->pcnt);
+        return 0;
+    }
+    
+    // Clear count after reading
+    pcnt_unit_clear_count(encoder->pcnt);
+    
+    // Normalize
+    if (delta != 0) {
+        encoder->last_rotation_time = now;
+        return (delta > 0) ? 1 : -1;  // 1 = right, -1 = left
+    }
+    
+    return 0;  // No movement
 }
