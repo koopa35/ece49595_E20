@@ -20,32 +20,48 @@ static menu_t menu_main;
 #define VAL_IDX_CURRENT 1
 #define VAL_IDX_POWER 2
 #define VAL_IDX_TEMP 3
-#define VAL_IDX_EQ_LOWS 4
-#define VAL_IDX_EQ_MIDS 5
-#define VAL_IDX_EQ_HIGHS 6
-#define VAL_IDX_INPUT 7
-#define VAL_IDX_TRACK 8
-#define VAL_IDX_ARTIST 9
-#define VAL_IDX_TRACK_RUNTIME 10
-#define VAL_IDX_RUNTIME_TOTAL 11
-#define VAL_IDX_NEXT_CHANGE 12
+#define VAL_IDX_EQ_BAND0 4
+#define VAL_IDX_EQ_BAND1 5
+#define VAL_IDX_EQ_BAND2 6
+#define VAL_IDX_EQ_BAND3 7
+#define VAL_IDX_EQ_BAND4 8
+#define VAL_IDX_EQ_BAND5 9
+#define VAL_IDX_EQ_BAND6 10
+#define VAL_IDX_EQ_BAND7 11
+#define VAL_IDX_BLUETOOTH 12
+#define VAL_IDX_AUX 13
+#define VAL_IDX_TRACK 14
+#define VAL_IDX_ARTIST 15
+#define VAL_IDX_TRACK_RUNTIME 16
+#define VAL_IDX_RUNTIME_TOTAL 17
+#define VAL_IDX_NEXT_CHANGE 18
 
 // Input Selection submenu items
 static menu_item_t input_selection_items[] = {
-    {.label = "Bluetooth", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
-     .value_type = MENU_VALUE_TYPE_STRING, .value_index = VAL_IDX_INPUT, .value_format = NULL},
-    {.label = "Auxiliary", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
-     .value_type = MENU_VALUE_TYPE_STRING, .value_index = VAL_IDX_INPUT, .value_format = NULL},
+    {.label = "Bluetooth:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_STRING, .value_index = VAL_IDX_BLUETOOTH, .value_format = NULL},
+    {.label = "Auxiliary:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_STRING, .value_index = VAL_IDX_AUX, .value_format = NULL},
 };
 
 // Equalizer Settings submenu items
 static menu_item_t equalizer_items[] = {
-    {.label = "Lows", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
-     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_LOWS, .value_format = "%d%%"},
-    {.label = "Mids", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
-     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_MIDS, .value_format = "%d%%"},
-    {.label = "Highs", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
-     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_HIGHS, .value_format = "%d%%"},
+    {.label = "Band 0:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_BAND0, .value_format = "%d%%"},
+    {.label = "Band 1:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_BAND1, .value_format = "%d%%"},
+    {.label = "Band 2:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_BAND2, .value_format = "%d%%"},
+    {.label = "Band 3:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_BAND3, .value_format = "%d%%"},
+    {.label = "Band 4:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_BAND4, .value_format = "%d%%"},
+    {.label = "Band 5:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_BAND5, .value_format = "%d%%"},
+    {.label = "Band 6:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_BAND6, .value_format = "%d%%"},
+    {.label = "Band 7:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_BAND7, .value_format = "%d%%"},
 };
 
 // Playback Metadata submenu items
@@ -60,21 +76,21 @@ static menu_item_t playback_metadata_items[] = {
 
 // Run-time Reporter submenu items
 static menu_item_t runtime_reporter_items[] = {
-    {.label = "Runtime", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+    {.label = "Runtime:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_RUNTIME_TOTAL, .value_format = "%d:%02d"},
-    {.label = "Change", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
-     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_NEXT_CHANGE, .value_format = "in %d s"},
+    {.label = "Change:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_NEXT_CHANGE, .value_format = "%d:%02d"},
 };
 
 // V/I/P/Temp Readings submenu items
 static menu_item_t vip_temp_items[] = {
-    {.label = "Power", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+    {.label = "Power:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_FLOAT, .value_index = VAL_IDX_POWER, .value_format = "%.2f W"},
-    {.label = "Temp", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+    {.label = "Temp:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_FLOAT, .value_index = VAL_IDX_TEMP, .value_format = "%.1f C"},
-    {.label = "Voltage", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+    {.label = "VDC:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_FLOAT, .value_index = VAL_IDX_VOLTAGE, .value_format = "%.2f V"},
-    {.label = "Current", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+    {.label = "IDC:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_FLOAT, .value_index = VAL_IDX_CURRENT, .value_format = "%.2f A"},
 };
 
@@ -186,18 +202,23 @@ static void get_value_string(menu_system_t *menu_sys, menu_item_t *item, char *b
         case MENU_VALUE_TYPE_INT: {
             int val = 0;
             switch (item->value_index) {
-                case VAL_IDX_EQ_LOWS: val = menu_sys->values.equalizer_lows; break;
-                case VAL_IDX_EQ_MIDS: val = menu_sys->values.equalizer_mids; break;
-                case VAL_IDX_EQ_HIGHS: val = menu_sys->values.equalizer_highs; break;
+                case VAL_IDX_EQ_BAND0: val = menu_sys->values.equalizer_band0; break;
+                case VAL_IDX_EQ_BAND1: val = menu_sys->values.equalizer_band1; break;
+                case VAL_IDX_EQ_BAND2: val = menu_sys->values.equalizer_band2; break;
+                case VAL_IDX_EQ_BAND3: val = menu_sys->values.equalizer_band3; break;
+                case VAL_IDX_EQ_BAND4: val = menu_sys->values.equalizer_band4; break;
+                case VAL_IDX_EQ_BAND5: val = menu_sys->values.equalizer_band5; break;
+                case VAL_IDX_EQ_BAND6: val = menu_sys->values.equalizer_band6; break;
+                case VAL_IDX_EQ_BAND7: val = menu_sys->values.equalizer_band7; break;
+
                 case VAL_IDX_TRACK_RUNTIME: val = menu_sys->values.track_runtime_sec; break;
-                case VAL_IDX_RUNTIME_TOTAL: val = menu_sys->values.runtime_total_sec; break;
-                case VAL_IDX_NEXT_CHANGE: val = menu_sys->values.next_change_sec; break;
+                case VAL_IDX_RUNTIME_TOTAL: val = menu_sys->values.runtime_total_hr; break;
+                case VAL_IDX_NEXT_CHANGE: val = menu_sys->values.next_change_hr; break;
             }
             if (item->value_format) {
-                if (strcmp(item->value_format, "%d:%02d") == 0) {
-                    int hours = val / 3600;
-                    int minutes = (val % 3600) / 60;
-                    snprintf(buffer, buffer_size, "%d:%02d", hours, minutes);
+                if (strcmp(item->value_format, "%f") == 0) {
+                    float hours = val / 3600.0f;
+                    snprintf(buffer, buffer_size, "%.2f", hours);
                 } else {
                     snprintf(buffer, buffer_size, item->value_format, val);
                 }
@@ -209,7 +230,9 @@ static void get_value_string(menu_system_t *menu_sys, menu_item_t *item, char *b
         case MENU_VALUE_TYPE_STRING: {
             const char *val = NULL;
             switch (item->value_index) {
-                case VAL_IDX_INPUT: val = menu_sys->values.current_input; break;
+                case VAL_IDX_BLUETOOTH: val = (menu_sys->values.bluetooth_status) ? "ON" : "OFF"; break;
+                case VAL_IDX_AUX: val = (menu_sys->values.aux_status) ? "ON" : "OFF"; break;
+
                 case VAL_IDX_TRACK: val = menu_sys->values.current_track; break;
                 case VAL_IDX_ARTIST: val = menu_sys->values.current_artist; break;
             }
@@ -232,8 +255,8 @@ static void display_item_row(menu_system_t *menu_sys, menu_t *menu, uint8_t item
     const char *indicator = (item_idx == menu->selected_index) ? ">" : " ";
     const char *label = item->label;
     
-    if (item_idx == menu->selected_index && 
-        item->type == MENU_ITEM_TYPE_SETTING && 
+    // Show value for all SETTING items, not just selected
+    if (item->type == MENU_ITEM_TYPE_SETTING && 
         item->value_type != MENU_VALUE_TYPE_NONE) {
         
         char value_str[MENU_DISPLAY_COLS + 1];
@@ -309,11 +332,25 @@ static void display_menu(menu_system_t *menu_sys) {
         end_idx = menu->item_count;
     }
     
+    // Check if any visible items are SETTING items (for optimization)
+    bool has_visible_settings = false;
+    for (uint8_t i = start_idx; i < end_idx; i++) {
+        menu_item_t *item = &menu->items[i];
+        if (item->type == MENU_ITEM_TYPE_SETTING && 
+            item->value_type != MENU_VALUE_TYPE_NONE) {
+            has_visible_settings = true;
+            break;
+        }
+    }
+    
     for (uint8_t display_row = 0; display_row < MENU_DISPLAY_ROWS; display_row++) {
         uint8_t item_idx = start_idx + display_row;
         bool row_needs_update = false;
         
         if (menu_changed || menu_sys->needs_refresh) {
+            row_needs_update = true;
+        } else if (has_visible_settings) {
+            // Always update when SETTING items are visible (to refresh values)
             row_needs_update = true;
         } else {
             if (item_idx < end_idx) {
@@ -326,12 +363,6 @@ static void display_menu(menu_system_t *menu_sys) {
                 } else if (state->row_dirty[display_row]) {
                     row_needs_update = true;
                     state->row_dirty[display_row] = false;
-                } else if (item_idx == menu->selected_index) {
-                    menu_item_t *item = &menu->items[item_idx];
-                    if (item->type == MENU_ITEM_TYPE_SETTING && 
-                        item->value_type != MENU_VALUE_TYPE_NONE) {
-                        row_needs_update = true;
-                    }
                 }
             } else {
                 if (state->displayed_items[display_row] != 0xFF) {
@@ -340,6 +371,7 @@ static void display_menu(menu_system_t *menu_sys) {
             }
         }
         
+        // Always display rows with items
         if (item_idx < end_idx) {
             display_item_row(menu_sys, menu, item_idx, display_row);
             state->displayed_items[display_row] = item_idx;
@@ -461,11 +493,26 @@ void menu_system_update(menu_system_t *menu_sys) {
         }
     }
     
+    // Check if any visible items are SETTING items that need value refresh
     bool value_refresh_needed = false;
-    if (menu->item_count > 0 && menu->selected_index < menu->item_count) {
-        menu_item_t *selected_item = &menu->items[menu->selected_index];
-        if (selected_item->type == MENU_ITEM_TYPE_SETTING && 
-            selected_item->value_type != MENU_VALUE_TYPE_NONE) {
+    if (menu->item_count > 0) {
+        uint8_t start_idx = menu->scroll_offset;
+        uint8_t end_idx = start_idx + MENU_DISPLAY_ROWS;
+        if (end_idx > menu->item_count) {
+            end_idx = menu->item_count;
+        }
+        
+        bool has_setting_items = false;
+        for (uint8_t i = start_idx; i < end_idx; i++) {
+            menu_item_t *item = &menu->items[i];
+            if (item->type == MENU_ITEM_TYPE_SETTING && 
+                item->value_type != MENU_VALUE_TYPE_NONE) {
+                has_setting_items = true;
+                break;
+            }
+        }
+        
+        if (has_setting_items) {
             int64_t now = esp_timer_get_time() / 1000;
             if (now - menu_sys->last_value_refresh >= menu_sys->value_refresh_ms) {
                 value_refresh_needed = true;
@@ -474,11 +521,12 @@ void menu_system_update(menu_system_t *menu_sys) {
         }
     }
     
-    if (refresh_needed || menu_sys->needs_refresh || value_refresh_needed) {
-        if (value_refresh_needed) {
-            menu_sys->display_state.row_dirty[0] = true;
-            menu_sys->display_state.row_dirty[1] = true;
-        }
+    // Force refresh if values need updating
+    if (value_refresh_needed) {
+        menu_sys->needs_refresh = true;
+    }
+    
+    if (refresh_needed || menu_sys->needs_refresh) {
         display_menu(menu_sys);
         menu_sys->needs_refresh = false;
     }

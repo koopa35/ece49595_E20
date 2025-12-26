@@ -48,15 +48,21 @@ typedef struct {
     float current;
     float power;
     float temperature;
-    int equalizer_lows;
-    int equalizer_mids;
-    int equalizer_highs;
-    const char* current_input;
+    int equalizer_band0;
+    int equalizer_band1;
+    int equalizer_band2;
+    int equalizer_band3;
+    int equalizer_band4;
+    int equalizer_band5;
+    int equalizer_band6;
+    int equalizer_band7;
+    int bluetooth_status;
+    int aux_status;
     const char* current_track;
     const char* current_artist;
     int track_runtime_sec;
-    int runtime_total_sec;
-    int next_change_sec;
+    int runtime_total_hr;
+    int next_change_hr;
 } menu_values_t;
 
 typedef struct {

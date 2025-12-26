@@ -21,6 +21,9 @@
 #define MOSI_PIN 23
 #define CS_OLED1_PIN 32
 
+#define INPUT_ON 1
+#define INPUT_OFF 0
+
 spi_device_handle_t spi_oled1;
 
 // Rotary encoder configuration
@@ -70,17 +73,24 @@ void value_update_task(void *arg)
     values.power = 28.75f;
     values.temperature = 45.2f;
     
-    values.equalizer_lows = 50;
-    values.equalizer_mids = 50;
-    values.equalizer_highs = 50;
-    
-    values.current_input = "Bluetooth";
+    values.equalizer_band0 = 50;
+    values.equalizer_band1 = 50;
+    values.equalizer_band2 = 50;
+    values.equalizer_band3 = 50;
+    values.equalizer_band4 = 50;
+    values.equalizer_band5 = 50;
+    values.equalizer_band6 = 50;
+    values.equalizer_band7 = 50;
+
+    values.bluetooth_status = INPUT_ON;
+    values.aux_status = INPUT_OFF;
+
     values.current_track = "Song Title";
     values.current_artist = "Artist Name";
     values.track_runtime_sec = 125;
     
-    values.runtime_total_sec = 3600;
-    values.next_change_sec = 300;
+    values.runtime_total_hr = 36;
+    values.next_change_hr = 300;
     
     while (1) {
         // Update menu with values
