@@ -491,21 +491,36 @@ CONFIG_COMPILER_ORPHAN_SECTIONS_WARNING=y
 # Legacy TWAI Driver Configurations
 #
 # CONFIG_TWAI_SKIP_LEGACY_CONFLICT_CHECK is not set
+CONFIG_TWAI_ERRATA_FIX_BUS_OFF_REC=y
+CONFIG_TWAI_ERRATA_FIX_TX_INTR_LOST=y
+CONFIG_TWAI_ERRATA_FIX_RX_FRAME_INVALID=y
+CONFIG_TWAI_ERRATA_FIX_RX_FIFO_CORRUPT=y
 CONFIG_TWAI_ERRATA_FIX_LISTEN_ONLY_DOM=y
 # end of Legacy TWAI Driver Configurations
 
 #
 # Legacy ADC Driver Configuration
 #
+CONFIG_ADC_DISABLE_DAC=y
 # CONFIG_ADC_SUPPRESS_DEPRECATE_WARN is not set
 # CONFIG_ADC_SKIP_LEGACY_CONFLICT_CHECK is not set
 
 #
 # Legacy ADC Calibration Configuration
 #
+CONFIG_ADC_CAL_EFUSE_TP_ENABLE=y
+CONFIG_ADC_CAL_EFUSE_VREF_ENABLE=y
+CONFIG_ADC_CAL_LUT_ENABLE=y
 # CONFIG_ADC_CALI_SUPPRESS_DEPRECATE_WARN is not set
 # end of Legacy ADC Calibration Configuration
 # end of Legacy ADC Driver Configuration
+
+#
+# Legacy DAC Driver Configurations
+#
+# CONFIG_DAC_SUPPRESS_DEPRECATE_WARN is not set
+# CONFIG_DAC_SKIP_LEGACY_CONFLICT_CHECK is not set
+# end of Legacy DAC Driver Configurations
 
 #
 # Legacy MCPWM Driver Configurations
@@ -554,13 +569,6 @@ CONFIG_TWAI_ERRATA_FIX_LISTEN_ONLY_DOM=y
 # CONFIG_SDM_SUPPRESS_DEPRECATE_WARN is not set
 # CONFIG_SDM_SKIP_LEGACY_CONFLICT_CHECK is not set
 # end of Legacy SDM Driver Configurations
-
-#
-# Legacy Temperature Sensor Driver Configurations
-#
-# CONFIG_TEMP_SENSOR_SUPPRESS_DEPRECATE_WARN is not set
-# CONFIG_TEMP_SENSOR_SKIP_LEGACY_CONFLICT_CHECK is not set
-# end of Legacy Temperature Sensor Driver Configurations
 
 #
 # Legacy Touch Sensor Driver Configurations
@@ -684,12 +692,6 @@ CONFIG_SPI_SLAVE_ISR_IN_IRAM=y
 # end of ESP-Driver:SPI Configurations
 
 #
-# ESP-Driver:Temperature Sensor Configurations
-#
-# CONFIG_TEMP_SENSOR_ENABLE_DEBUG_LOG is not set
-# end of ESP-Driver:Temperature Sensor Configurations
-
-#
 # ESP-Driver:TWAI Configurations
 #
 # CONFIG_TWAI_ISR_IN_IRAM is not set
@@ -710,12 +712,6 @@ CONFIG_SPI_SLAVE_ISR_IN_IRAM=y
 # CONFIG_UHCI_ISR_CACHE_SAFE is not set
 # CONFIG_UHCI_ENABLE_DEBUG_LOG is not set
 # end of ESP-Driver:UHCI Configurations
-
-#
-# ESP-Driver:USB Serial/JTAG Configuration
-#
-CONFIG_USJ_ENABLE_USB_SERIAL_JTAG=y
-# end of ESP-Driver:USB Serial/JTAG Configuration
 
 #
 # Hardware Settings
@@ -825,6 +821,7 @@ CONFIG_ESP_BROWNOUT_USE_INTR=y
 # end of Brownout Detector
 # end of Power Supplier
 
+CONFIG_ESP_SPI_BUS_LOCK_ISR_FUNCS_IN_IRAM=y
 CONFIG_ESP_INTR_IN_IRAM=y
 # end of Hardware Settings
 
@@ -845,6 +842,12 @@ CONFIG_PM_SLEEP_FUNC_IN_IRAM=y
 # CONFIG_PM_ENABLE is not set
 CONFIG_PM_SLP_IRAM_OPT=y
 # end of Power Management
+
+#
+# ESP Ringbuf
+#
+# CONFIG_RINGBUF_PLACE_FUNCTIONS_INTO_FLASH is not set
+# end of ESP Ringbuf
 
 #
 # ESP-ROM
@@ -1372,8 +1375,12 @@ CONFIG_STACK_CHECK_NONE=y
 # CONFIG_STACK_CHECK_STRONG is not set
 # CONFIG_STACK_CHECK_ALL is not set
 # CONFIG_WARN_WRITE_STRINGS is not set
+CONFIG_ADC2_DISABLE_DAC=y
 # CONFIG_GPTIMER_ISR_IRAM_SAFE is not set
 # CONFIG_MCPWM_ISR_IRAM_SAFE is not set
+# CONFIG_TWO_UNIVERSAL_MAC_ADDRESS is not set
+CONFIG_FOUR_UNIVERSAL_MAC_ADDRESS=y
+CONFIG_NUMBER_OF_UNIVERSAL_MAC_ADDRESS=4
 # CONFIG_ESP_SYSTEM_PD_FLASH is not set
 CONFIG_ESP32_DEEP_SLEEP_WAKEUP_DELAY=2000
 CONFIG_ESP_SLEEP_DEEP_SLEEP_WAKEUP_DELAY=2000
