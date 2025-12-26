@@ -89,8 +89,8 @@ void value_update_task(void *arg)
     values.current_artist = "Artist Name";
     values.track_runtime_sec = 125;
     
-    values.runtime_total_hr = 36;
-    values.next_change_hr = 300;
+    values.runtime_total_sec = 3600;
+    values.next_change_sec = 3600000;
     
     while (1) {
         // Update menu with values

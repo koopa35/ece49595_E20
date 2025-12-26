@@ -35,7 +35,6 @@ typedef struct {
 } menu_item_t;
 
 struct menu_s {
-    const char *title;
     menu_item_t *items;
     uint8_t item_count;
     uint8_t selected_index;
@@ -61,8 +60,8 @@ typedef struct {
     const char* current_track;
     const char* current_artist;
     int track_runtime_sec;
-    int runtime_total_hr;
-    int next_change_hr;
+    int runtime_total_sec;
+    int next_change_sec;
 } menu_values_t;
 
 typedef struct {

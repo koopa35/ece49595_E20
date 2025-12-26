@@ -71,15 +71,15 @@ static menu_item_t playback_metadata_items[] = {
     {.label = "", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_STRING, .value_index = VAL_IDX_ARTIST, .value_format = NULL},
     {.label = "", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
-     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_TRACK_RUNTIME, .value_format = "%d:%02d"},
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_TRACK_RUNTIME, .value_format = "MM:SS"},
 };
 
 // Run-time Reporter submenu items
 static menu_item_t runtime_reporter_items[] = {
     {.label = "Runtime:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
-     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_RUNTIME_TOTAL, .value_format = "%d:%02d"},
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_RUNTIME_TOTAL, .value_format = "HH:MM"},
     {.label = "Change:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
-     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_NEXT_CHANGE, .value_format = "%d:%02d"},
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_NEXT_CHANGE, .value_format = "HH:MM"},
 };
 
 // V/I/P/Temp Readings submenu items
@@ -110,9 +110,8 @@ static menu_item_t main_menu_items[] = {
      .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
 };
 
-// Menu definitions
+// Submenu definitions
 static menu_t menu_input_selection = {
-    .title = "Input Select",
     .items = input_selection_items,
     .item_count = sizeof(input_selection_items) / sizeof(menu_item_t),
     .selected_index = 0,
@@ -121,7 +120,6 @@ static menu_t menu_input_selection = {
 };
 
 static menu_t menu_equalizer_settings = {
-    .title = "Equalizer",
     .items = equalizer_items,
     .item_count = sizeof(equalizer_items) / sizeof(menu_item_t),
     .selected_index = 0,
@@ -130,7 +128,6 @@ static menu_t menu_equalizer_settings = {
 };
 
 static menu_t menu_playback_metadata = {
-    .title = "Metadata",
     .items = playback_metadata_items,
     .item_count = sizeof(playback_metadata_items) / sizeof(menu_item_t),
     .selected_index = 0,
@@ -139,7 +136,6 @@ static menu_t menu_playback_metadata = {
 };
 
 static menu_t menu_runtime_reporter = {
-    .title = "Runtime Report",
     .items = runtime_reporter_items,
     .item_count = sizeof(runtime_reporter_items) / sizeof(menu_item_t),
     .selected_index = 0,
@@ -148,7 +144,6 @@ static menu_t menu_runtime_reporter = {
 };
 
 static menu_t menu_vip_temp_readings = {
-    .title = "V/I/P/Temp",
     .items = vip_temp_items,
     .item_count = sizeof(vip_temp_items) / sizeof(menu_item_t),
     .selected_index = 0,
@@ -157,7 +152,6 @@ static menu_t menu_vip_temp_readings = {
 };
 
 static menu_t menu_main = {
-    .title = "Main Menu",
     .items = main_menu_items,
     .item_count = sizeof(main_menu_items) / sizeof(menu_item_t),
     .selected_index = 0,
@@ -212,19 +206,28 @@ static void get_value_string(menu_system_t *menu_sys, menu_item_t *item, char *b
                 case VAL_IDX_EQ_BAND7: val = menu_sys->values.equalizer_band7; break;
 
                 case VAL_IDX_TRACK_RUNTIME: val = menu_sys->values.track_runtime_sec; break;
-                case VAL_IDX_RUNTIME_TOTAL: val = menu_sys->values.runtime_total_hr; break;
-                case VAL_IDX_NEXT_CHANGE: val = menu_sys->values.next_change_hr; break;
+
+                case VAL_IDX_RUNTIME_TOTAL: val = menu_sys->values.runtime_total_sec; break;
+                case VAL_IDX_NEXT_CHANGE: val = menu_sys->values.next_change_sec; break;
             }
             if (item->value_format) {
-                if (strcmp(item->value_format, "%f") == 0) {
+                if (strcmp(item->value_format, "HH:MM") == 0) {
+                    int hours = val / 3600;
+                    int minutes = (val % 3600) / 60;
+                    snprintf(buffer, buffer_size, "%02d:%02d", hours, minutes);
+                } else if (strcmp(item->value_format, "MM:SS") == 0) {
+                    int minutes = val / 60;
+                    int seconds = val % 60;
+                    snprintf(buffer, buffer_size, "%02d:%02d", minutes, seconds);
+                } else if (strchr(item->value_format, 'f')) {
                     float hours = val / 3600.0f;
-                    snprintf(buffer, buffer_size, "%.2f", hours);
+                    snprintf(buffer, buffer_size, item->value_format, hours);
                 } else {
                     snprintf(buffer, buffer_size, item->value_format, val);
                 }
-            } else {
-                snprintf(buffer, buffer_size, "%d", val);
-            }
+                } else {
+                    snprintf(buffer, buffer_size, "%d", val);
+                }
             break;
         }
         case MENU_VALUE_TYPE_STRING: {
@@ -255,7 +258,7 @@ static void display_item_row(menu_system_t *menu_sys, menu_t *menu, uint8_t item
     const char *indicator = (item_idx == menu->selected_index) ? ">" : " ";
     const char *label = item->label;
     
-    // Show value for all SETTING items, not just selected
+    // Show value for all SETTING items
     if (item->type == MENU_ITEM_TYPE_SETTING && 
         item->value_type != MENU_VALUE_TYPE_NONE) {
         
