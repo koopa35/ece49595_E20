@@ -60,9 +60,9 @@ typedef struct {
     const char* current_track;
     const char* current_artist;
     int track_runtime_sec;
+    int volume;
     int runtime_total_sec;
     int next_change_sec;
-    int volume;
 } menu_values_t;
 
 typedef struct {

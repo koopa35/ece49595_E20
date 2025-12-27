@@ -34,9 +34,9 @@ static menu_t menu_main;
 #define VAL_IDX_TRACK 14
 #define VAL_IDX_ARTIST 15
 #define VAL_IDX_TRACK_RUNTIME 16
-#define VAL_IDX_RUNTIME_TOTAL 17
-#define VAL_IDX_NEXT_CHANGE 18
-#define VAL_IDX_VOLUME 19
+#define VAL_IDX_VOLUME 17
+#define VAL_IDX_RUNTIME_TOTAL 18
+#define VAL_IDX_NEXT_CHANGE 19
 
 // Input Selection submenu items
 static menu_item_t input_selection_items[] = {
@@ -157,6 +157,14 @@ static menu_t menu_playback_metadata = {
     .parent = &menu_main,
 };
 
+static menu_t menu_volume = {
+    .items = volume_items,
+    .item_count = sizeof(volume_items) / sizeof(menu_item_t),
+    .selected_index = 0,
+    .scroll_offset = 0,
+    .parent = &menu_main,
+};
+
 static menu_t menu_runtime_reporter = {
     .items = runtime_reporter_items,
     .item_count = sizeof(runtime_reporter_items) / sizeof(menu_item_t),
@@ -168,14 +176,6 @@ static menu_t menu_runtime_reporter = {
 static menu_t menu_vip_temp_readings = {
     .items = vip_temp_items,
     .item_count = sizeof(vip_temp_items) / sizeof(menu_item_t),
-    .selected_index = 0,
-    .scroll_offset = 0,
-    .parent = &menu_main,
-};
-
-static menu_t menu_volume = {
-    .items = volume_items,
-    .item_count = sizeof(volume_items) / sizeof(menu_item_t),
     .selected_index = 0,
     .scroll_offset = 0,
     .parent = &menu_main,
@@ -234,12 +234,10 @@ static void get_value_string(menu_system_t *menu_sys, menu_item_t *item, char *b
                 case VAL_IDX_EQ_BAND5: val = menu_sys->values.equalizer_band5; break;
                 case VAL_IDX_EQ_BAND6: val = menu_sys->values.equalizer_band6; break;
                 case VAL_IDX_EQ_BAND7: val = menu_sys->values.equalizer_band7; break;
-
                 case VAL_IDX_TRACK_RUNTIME: val = menu_sys->values.track_runtime_sec; break;
-
                 case VAL_IDX_RUNTIME_TOTAL: val = menu_sys->values.runtime_total_sec; break;
-                case VAL_IDX_NEXT_CHANGE: val = menu_sys->values.next_change_sec; break;
                 case VAL_IDX_VOLUME: val = menu_sys->values.volume; break;
+                case VAL_IDX_NEXT_CHANGE: val = menu_sys->values.next_change_sec; break;
             }
             if (item->value_format) {
                 if (strcmp(item->value_format, "HH:MM") == 0) {
@@ -266,7 +264,6 @@ static void get_value_string(menu_system_t *menu_sys, menu_item_t *item, char *b
             switch (item->value_index) {
                 case VAL_IDX_BLUETOOTH: val = (menu_sys->values.bluetooth_status) ? "ON" : "OFF"; break;
                 case VAL_IDX_AUX: val = (menu_sys->values.aux_status) ? "ON" : "OFF"; break;
-
                 case VAL_IDX_TRACK: val = menu_sys->values.current_track; break;
                 case VAL_IDX_ARTIST: val = menu_sys->values.current_artist; break;
             }
@@ -524,15 +521,15 @@ esp_err_t menu_system_init(menu_system_t *menu_sys, rotary_config_t *encoder, sp
     menu_input_selection.scroll_offset = 0;
     menu_equalizer_settings.selected_index = 0;
     menu_equalizer_settings.scroll_offset = 0;
+    menu_volume.selected_index = 0;
+    menu_volume.scroll_offset = 0;
     menu_playback_metadata.selected_index = 0;
     menu_playback_metadata.scroll_offset = 0;
     menu_runtime_reporter.selected_index = 0;
     menu_runtime_reporter.scroll_offset = 0;
     menu_vip_temp_readings.selected_index = 0;
     menu_vip_temp_readings.scroll_offset = 0;
-    menu_volume.selected_index = 0;
-    menu_volume.scroll_offset = 0;
-    
+
     memset(&menu_sys->values, 0, sizeof(menu_values_t));
     
     return ESP_OK;

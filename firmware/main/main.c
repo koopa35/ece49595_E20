@@ -82,20 +82,18 @@ void value_update_task(void *arg)
     values.equalizer_band6 = 50;
     values.equalizer_band7 = 50;
 
-    values.volume = 67;
-
     values.bluetooth_status = INPUT_ON;
     values.aux_status = INPUT_OFF;
 
     values.current_track = "Song Title";
     values.current_artist = "Artist Name";
     values.track_runtime_sec = 125;
+
+    values.volume = 67;
     
     values.runtime_total_sec = 3600;
     values.next_change_sec = 3600000;
-    
-    values.volume = 50;
-    
+        
     while (1) {
         // Update menu with values
         menu_update_values(&menu_sys, &values);
