@@ -13,6 +13,7 @@ static menu_t menu_equalizer_settings;
 static menu_t menu_playback_metadata;
 static menu_t menu_runtime_reporter;
 static menu_t menu_vip_temp_readings;
+static menu_t menu_volume;
 static menu_t menu_main;
 
 // Value indices (must match order in menu_values_t)
@@ -35,6 +36,7 @@ static menu_t menu_main;
 #define VAL_IDX_TRACK_RUNTIME 16
 #define VAL_IDX_RUNTIME_TOTAL 17
 #define VAL_IDX_NEXT_CHANGE 18
+#define VAL_IDX_VOLUME 19
 
 // Input Selection submenu items
 static menu_item_t input_selection_items[] = {
@@ -42,6 +44,8 @@ static menu_item_t input_selection_items[] = {
      .value_type = MENU_VALUE_TYPE_STRING, .value_index = VAL_IDX_BLUETOOTH, .value_format = NULL},
     {.label = "Auxiliary:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_STRING, .value_index = VAL_IDX_AUX, .value_format = NULL},
+    {.label = "Back", .type = MENU_ITEM_TYPE_ACTION, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
 };
 
 // Equalizer Settings submenu items
@@ -62,6 +66,8 @@ static menu_item_t equalizer_items[] = {
      .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_BAND6, .value_format = "%d%%"},
     {.label = "Band 7:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_EQ_BAND7, .value_format = "%d%%"},
+    {.label = "Back", .type = MENU_ITEM_TYPE_ACTION, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
 };
 
 // Playback Metadata submenu items
@@ -72,6 +78,8 @@ static menu_item_t playback_metadata_items[] = {
      .value_type = MENU_VALUE_TYPE_STRING, .value_index = VAL_IDX_ARTIST, .value_format = NULL},
     {.label = "", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_TRACK_RUNTIME, .value_format = "MM:SS"},
+    {.label = "Back", .type = MENU_ITEM_TYPE_ACTION, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
 };
 
 // Run-time Reporter submenu items
@@ -80,6 +88,10 @@ static menu_item_t runtime_reporter_items[] = {
      .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_RUNTIME_TOTAL, .value_format = "HH:MM"},
     {.label = "Change:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_NEXT_CHANGE, .value_format = "HH:MM"},
+    {.label = "Reset", .type = MENU_ITEM_TYPE_ACTION, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
+    {.label = "Back", .type = MENU_ITEM_TYPE_ACTION, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
 };
 
 // V/I/P/Temp Readings submenu items
@@ -92,6 +104,16 @@ static menu_item_t vip_temp_items[] = {
      .value_type = MENU_VALUE_TYPE_FLOAT, .value_index = VAL_IDX_VOLTAGE, .value_format = "%.2f V"},
     {.label = "IDC:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
      .value_type = MENU_VALUE_TYPE_FLOAT, .value_index = VAL_IDX_CURRENT, .value_format = "%.2f A"},
+    {.label = "Back", .type = MENU_ITEM_TYPE_ACTION, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
+};
+
+// Volume submenu items
+static menu_item_t volume_items[] = {
+    {.label = "Volume:", .type = MENU_ITEM_TYPE_SETTING, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_INT, .value_index = VAL_IDX_VOLUME, .value_format = "%d%%"},
+    {.label = "Back", .type = MENU_ITEM_TYPE_ACTION, .submenu = NULL, .action = NULL,
+     .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
 };
 
 // Main menu items
@@ -102,7 +124,7 @@ static menu_item_t main_menu_items[] = {
      .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
     {.label = "Metadata", .type = MENU_ITEM_TYPE_SUBMENU, .submenu = &menu_playback_metadata, .action = NULL,
      .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
-    {.label = "Volume", .type = MENU_ITEM_TYPE_ACTION, .submenu = NULL, .action = NULL,
+    {.label = "Volume", .type = MENU_ITEM_TYPE_SUBMENU, .submenu = &menu_volume, .action = NULL,
      .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
     {.label = "Runtime", .type = MENU_ITEM_TYPE_SUBMENU, .submenu = &menu_runtime_reporter, .action = NULL,
      .value_type = MENU_VALUE_TYPE_NONE, .value_index = 0, .value_format = NULL},
@@ -146,6 +168,14 @@ static menu_t menu_runtime_reporter = {
 static menu_t menu_vip_temp_readings = {
     .items = vip_temp_items,
     .item_count = sizeof(vip_temp_items) / sizeof(menu_item_t),
+    .selected_index = 0,
+    .scroll_offset = 0,
+    .parent = &menu_main,
+};
+
+static menu_t menu_volume = {
+    .items = volume_items,
+    .item_count = sizeof(volume_items) / sizeof(menu_item_t),
     .selected_index = 0,
     .scroll_offset = 0,
     .parent = &menu_main,
@@ -209,6 +239,7 @@ static void get_value_string(menu_system_t *menu_sys, menu_item_t *item, char *b
 
                 case VAL_IDX_RUNTIME_TOTAL: val = menu_sys->values.runtime_total_sec; break;
                 case VAL_IDX_NEXT_CHANGE: val = menu_sys->values.next_change_sec; break;
+                case VAL_IDX_VOLUME: val = menu_sys->values.volume; break;
             }
             if (item->value_format) {
                 if (strcmp(item->value_format, "HH:MM") == 0) {
@@ -257,43 +288,108 @@ static void display_item_row(menu_system_t *menu_sys, menu_t *menu, uint8_t item
     menu_item_t *item = &menu->items[item_idx];
     const char *indicator = (item_idx == menu->selected_index) ? ">" : " ";
     const char *label = item->label;
+    display_state_t *state = &menu_sys->display_state;
     
-    // Show value for all SETTING items
-    if (item->type == MENU_ITEM_TYPE_SETTING && 
-        item->value_type != MENU_VALUE_TYPE_NONE) {
-        
+    // Check if this is a SETTING item with a value
+    bool has_value = (item->type == MENU_ITEM_TYPE_SETTING && 
+                      item->value_type != MENU_VALUE_TYPE_NONE);
+    
+    if (has_value) {
         char value_str[MENU_DISPLAY_COLS + 1];
         get_value_string(menu_sys, item, value_str, MENU_DISPLAY_COLS + 1);
         
-        int label_len = strlen(label);
-        int value_len = strlen(value_str);
-        int available_space = MENU_DISPLAY_COLS - 1 - label_len - value_len;
+        // Check if value has changed
+        bool value_changed = (strcmp(value_str, state->last_displayed_values[display_row]) != 0);
         
-        if (available_space > 0) {
-            snprintf(item_line, MENU_DISPLAY_COLS + 1, "%s%s", indicator, label);
+        // Check if this is the first time displaying this item (item index changed)
+        bool item_changed = (state->displayed_items[display_row] != item_idx);
+        
+        // Check if selection indicator changed (selection moved to/from this item)
+        bool selection_changed = (state->displayed_selected != menu->selected_index);
+        bool is_selected = (item_idx == menu->selected_index);
+        bool was_selected = (item_idx == state->displayed_selected);
+        bool indicator_changed = selection_changed && (is_selected || was_selected);
+        
+        if (item_changed || indicator_changed) {
+            // First time displaying this item, write the whole line
+            int label_len = strlen(label);
+            int value_len = strlen(value_str);
+            int available_space = MENU_DISPLAY_COLS - 1 - label_len - value_len;
+            
+            if (available_space > 0) {
+                snprintf(item_line, MENU_DISPLAY_COLS + 1, "%s%s", indicator, label);
+                int len = strlen(item_line);
+                while (len < MENU_DISPLAY_COLS - value_len) {
+                    item_line[len++] = ' ';
+                }
+                strncpy(item_line + len, value_str, MENU_DISPLAY_COLS - len);
+                item_line[MENU_DISPLAY_COLS] = '\0';
+            } else {
+                int max_label_len = MENU_DISPLAY_COLS - 2;
+                snprintf(item_line, MENU_DISPLAY_COLS + 1, "%s%.*s", indicator, max_label_len, label);
+            }
+            
             int len = strlen(item_line);
-            while (len < MENU_DISPLAY_COLS - value_len) {
+            while (len < MENU_DISPLAY_COLS) {
                 item_line[len++] = ' ';
             }
-            strncpy(item_line + len, value_str, MENU_DISPLAY_COLS - len);
             item_line[MENU_DISPLAY_COLS] = '\0';
-        } else {
-            int max_label_len = MENU_DISPLAY_COLS - 2;
-            snprintf(item_line, MENU_DISPLAY_COLS + 1, "%s%.*s", indicator, max_label_len, label);
+            
+            set_cursor(menu_sys->spi_oled, display_row, 0);
+            print(menu_sys->spi_oled, item_line);
+            strncpy(state->last_displayed_values[display_row], value_str, MENU_DISPLAY_COLS);
+            state->last_displayed_values[display_row][MENU_DISPLAY_COLS] = '\0';
+        } else if (value_changed) {
+            // Value changed, only update the value portion
+            // Calculate where the value starts (after indicator + label + spacing)
+            int label_len = strlen(label);
+            int value_start_col = 1 + label_len; // 1 for indicator
+            
+            // Find where value actually starts (after padding)
+            // Build the label part to find the actual start position
+            char label_part[MENU_DISPLAY_COLS + 1];
+            snprintf(label_part, MENU_DISPLAY_COLS + 1, "%s%s", indicator, label);
+            int label_part_len = strlen(label_part);
+            
+            // Calculate where value should start (right-aligned in remaining space)
+            int value_len = strlen(value_str);
+            int max_value_start = MENU_DISPLAY_COLS - value_len;
+            int value_start = (label_part_len < max_value_start) ? max_value_start : label_part_len;
+            
+            // Set cursor to value start position and update only the value
+            set_cursor(menu_sys->spi_oled, display_row, value_start);
+            
+            // Print the new value, padding with spaces if new value is shorter
+            char value_update[MENU_DISPLAY_COLS + 1];
+            snprintf(value_update, MENU_DISPLAY_COLS + 1, "%s", value_str);
+            int value_update_len = strlen(value_update);
+            int remaining_cols = MENU_DISPLAY_COLS - value_start;
+            while (value_update_len < remaining_cols) {
+                value_update[value_update_len++] = ' ';
+            }
+            value_update[value_update_len] = '\0';
+            print(menu_sys->spi_oled, value_update);
+            
+            strncpy(state->last_displayed_values[display_row], value_str, MENU_DISPLAY_COLS);
+            state->last_displayed_values[display_row][MENU_DISPLAY_COLS] = '\0';
         }
+        // If value hasn't changed, do nothing (no refresh needed)
     } else {
+        // Not a SETTING item or no value, update whole line as before
         int max_label_len = MENU_DISPLAY_COLS - 2;
         snprintf(item_line, MENU_DISPLAY_COLS + 1, "%s%.*s", indicator, max_label_len, label);
+        
+        int len = strlen(item_line);
+        while (len < MENU_DISPLAY_COLS) {
+            item_line[len++] = ' ';
+        }
+        item_line[MENU_DISPLAY_COLS] = '\0';
+        
+        set_cursor(menu_sys->spi_oled, display_row, 0);
+        print(menu_sys->spi_oled, item_line);
+        // Clear stored value since this row doesn't have a value
+        state->last_displayed_values[display_row][0] = '\0';
     }
-    
-    int len = strlen(item_line);
-    while (len < MENU_DISPLAY_COLS) {
-        item_line[len++] = ' ';
-    }
-    item_line[MENU_DISPLAY_COLS] = '\0';
-    
-    set_cursor(menu_sys->spi_oled, display_row, 0);
-    print(menu_sys->spi_oled, item_line);
 }
 
 static void display_menu(menu_system_t *menu_sys) {
@@ -310,6 +406,12 @@ static void display_menu(menu_system_t *menu_sys) {
         state->displayed_selected = menu->selected_index;
         state->row_dirty[0] = true;
         state->row_dirty[1] = true;
+        // Reset displayed_items so all items are treated as new
+        state->displayed_items[0] = 0xFF;
+        state->displayed_items[1] = 0xFF;
+        // Clear last displayed values when menu changes
+        state->last_displayed_values[0][0] = '\0';
+        state->last_displayed_values[1][0] = '\0';
         
         if (menu->item_count == 0) {
             char empty_line[MENU_DISPLAY_COLS + 1];
@@ -319,8 +421,6 @@ static void display_menu(menu_system_t *menu_sys) {
             print(menu_sys->spi_oled, empty_line);
             set_cursor(menu_sys->spi_oled, 1, 0);
             print(menu_sys->spi_oled, empty_line);
-            state->displayed_items[0] = 0xFF;
-            state->displayed_items[1] = 0xFF;
             return;
         }
     }
@@ -335,37 +435,33 @@ static void display_menu(menu_system_t *menu_sys) {
         end_idx = menu->item_count;
     }
     
-    // Check if any visible items are SETTING items (for optimization)
-    bool has_visible_settings = false;
-    for (uint8_t i = start_idx; i < end_idx; i++) {
-        menu_item_t *item = &menu->items[i];
-        if (item->type == MENU_ITEM_TYPE_SETTING && 
-            item->value_type != MENU_VALUE_TYPE_NONE) {
-            has_visible_settings = true;
-            break;
-        }
-    }
-    
     for (uint8_t display_row = 0; display_row < MENU_DISPLAY_ROWS; display_row++) {
         uint8_t item_idx = start_idx + display_row;
         bool row_needs_update = false;
         
         if (menu_changed || menu_sys->needs_refresh) {
             row_needs_update = true;
-        } else if (has_visible_settings) {
-            // Always update when SETTING items are visible (to refresh values)
-            row_needs_update = true;
         } else {
             if (item_idx < end_idx) {
                 if (state->displayed_items[display_row] != item_idx) {
                     row_needs_update = true;
                 } else if (state->displayed_selected != menu->selected_index) {
+                    // Selection changed - update row if it's the selected item or was previously selected
                     if (item_idx == menu->selected_index || item_idx == state->displayed_selected) {
                         row_needs_update = true;
                     }
                 } else if (state->row_dirty[display_row]) {
                     row_needs_update = true;
                     state->row_dirty[display_row] = false;
+                } else if (state->check_value_changes) {
+                    // Check if this row has a SETTING item with a value that might have changed
+                    // display_item_row will check if value actually changed and skip update if unchanged
+                    menu_item_t *item = &menu->items[item_idx];
+                    if (item->type == MENU_ITEM_TYPE_SETTING && 
+                        item->value_type != MENU_VALUE_TYPE_NONE) {
+                        // Allow display_item_row to check if value changed (it will skip if unchanged)
+                        row_needs_update = true;
+                    }
                 }
             } else {
                 if (state->displayed_items[display_row] != 0xFF) {
@@ -374,9 +470,11 @@ static void display_menu(menu_system_t *menu_sys) {
             }
         }
         
-        // Always display rows with items
+        // Always display rows with items (display_item_row will skip if value unchanged)
         if (item_idx < end_idx) {
-            display_item_row(menu_sys, menu, item_idx, display_row);
+            if (row_needs_update) {
+                display_item_row(menu_sys, menu, item_idx, display_row);
+            }
             state->displayed_items[display_row] = item_idx;
         } else if (row_needs_update) {
             char empty_line[MENU_DISPLAY_COLS + 1];
@@ -385,10 +483,12 @@ static void display_menu(menu_system_t *menu_sys) {
             set_cursor(menu_sys->spi_oled, display_row, 0);
             print(menu_sys->spi_oled, empty_line);
             state->displayed_items[display_row] = 0xFF;
+            state->last_displayed_values[display_row][0] = '\0';
         }
     }
     
     state->displayed_selected = menu->selected_index;
+    state->check_value_changes = false;  // Reset flag after checking
 }
 
 esp_err_t menu_system_init(menu_system_t *menu_sys, rotary_config_t *encoder, spi_device_handle_t spi_oled) {
@@ -414,6 +514,9 @@ esp_err_t menu_system_init(menu_system_t *menu_sys, rotary_config_t *encoder, sp
     menu_sys->display_state.displayed_selected = 0xFF;
     menu_sys->display_state.row_dirty[0] = false;
     menu_sys->display_state.row_dirty[1] = false;
+    menu_sys->display_state.last_displayed_values[0][0] = '\0';
+    menu_sys->display_state.last_displayed_values[1][0] = '\0';
+    menu_sys->display_state.check_value_changes = false;
     
     menu_main.selected_index = 0;
     menu_main.scroll_offset = 0;
@@ -427,6 +530,8 @@ esp_err_t menu_system_init(menu_system_t *menu_sys, rotary_config_t *encoder, sp
     menu_runtime_reporter.scroll_offset = 0;
     menu_vip_temp_readings.selected_index = 0;
     menu_vip_temp_readings.scroll_offset = 0;
+    menu_volume.selected_index = 0;
+    menu_volume.scroll_offset = 0;
     
     memset(&menu_sys->values, 0, sizeof(menu_values_t));
     
@@ -483,31 +588,41 @@ void menu_system_update(menu_system_t *menu_sys) {
                 menu_sys->current_menu = item->submenu;
                 menu_sys->current_menu->selected_index = 0;
                 menu_sys->current_menu->scroll_offset = 0;
+                menu_sys->needs_refresh = true;
                 refresh_needed = true;
+                // Update local menu pointer to new menu
+                menu = menu_sys->current_menu;
             } else if (item->type == MENU_ITEM_TYPE_ACTION && item->action != NULL) {
                 item->action();
             } else if (menu->parent != NULL) {
                 menu_system_navigate_back(menu_sys);
                 refresh_needed = true;
+                // Update local menu pointer after navigation
+                menu = menu_sys->current_menu;
             }
         } else if (menu->parent != NULL) {
             menu_system_navigate_back(menu_sys);
             refresh_needed = true;
+            // Update local menu pointer after navigation
+            menu = menu_sys->current_menu;
         }
     }
     
-    // Check if any visible items are SETTING items that need value refresh
-    bool value_refresh_needed = false;
-    if (menu->item_count > 0) {
-        uint8_t start_idx = menu->scroll_offset;
+    // Always call display_menu - it will intelligently skip updates when values haven't changed
+    // Check if any visible items are SETTING items that need value refresh check
+    // Use current_menu directly to ensure we're checking the right menu
+    bool value_refresh_check_needed = false;
+    menu_t *current_menu = menu_sys->current_menu;
+    if (current_menu && current_menu->item_count > 0) {
+        uint8_t start_idx = current_menu->scroll_offset;
         uint8_t end_idx = start_idx + MENU_DISPLAY_ROWS;
-        if (end_idx > menu->item_count) {
-            end_idx = menu->item_count;
+        if (end_idx > current_menu->item_count) {
+            end_idx = current_menu->item_count;
         }
         
         bool has_setting_items = false;
         for (uint8_t i = start_idx; i < end_idx; i++) {
-            menu_item_t *item = &menu->items[i];
+            menu_item_t *item = &current_menu->items[i];
             if (item->type == MENU_ITEM_TYPE_SETTING && 
                 item->value_type != MENU_VALUE_TYPE_NONE) {
                 has_setting_items = true;
@@ -518,18 +633,16 @@ void menu_system_update(menu_system_t *menu_sys) {
         if (has_setting_items) {
             int64_t now = esp_timer_get_time() / 1000;
             if (now - menu_sys->last_value_refresh >= menu_sys->value_refresh_ms) {
-                value_refresh_needed = true;
+                value_refresh_check_needed = true;
                 menu_sys->last_value_refresh = now;
             }
         }
     }
     
-    // Force refresh if values need updating
-    if (value_refresh_needed) {
-        menu_sys->needs_refresh = true;
-    }
+    // Store flag for display_menu to check values
+    menu_sys->display_state.check_value_changes = value_refresh_check_needed;
     
-    if (refresh_needed || menu_sys->needs_refresh) {
+    if (refresh_needed || menu_sys->needs_refresh || value_refresh_check_needed) {
         display_menu(menu_sys);
         menu_sys->needs_refresh = false;
     }

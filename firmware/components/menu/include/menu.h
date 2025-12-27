@@ -62,6 +62,7 @@ typedef struct {
     int track_runtime_sec;
     int runtime_total_sec;
     int next_change_sec;
+    int volume;
 } menu_values_t;
 
 typedef struct {
@@ -69,6 +70,8 @@ typedef struct {
     uint8_t displayed_items[2];
     uint8_t displayed_selected;
     bool row_dirty[2];
+    char last_displayed_values[2][MENU_DISPLAY_COLS + 1];
+    bool check_value_changes;
 } display_state_t;
 
 typedef struct {
