@@ -11,7 +11,7 @@
 #include "driver/spi_master.h"
 #include "1602A_OLED.h"
 #include "rotary_encoder.h"
-#include "menu.h"
+#include "user_interface.h"
 
 #define ROTARY_A 33
 #define ROTARY_B 25
@@ -24,7 +24,38 @@
 #define INPUT_ON 1
 #define INPUT_OFF 0
 
-spi_device_handle_t spi_oled1;
+// Global Variables
+float voltage = 12.5;
+float current = 2.3;
+float power = 28.75;
+float temperature = 45.2;
+
+uint16_t volume = 67;
+
+uint16_t equalizer_band0 = 50;
+uint16_t equalizer_band1 = 50;
+uint16_t equalizer_band2 = 50;
+uint16_t equalizer_band3 = 50;
+uint16_t equalizer_band4 = 50;
+uint16_t equalizer_band5 = 50;
+uint16_t equalizer_band6 = 50;
+uint16_t equalizer_band7 = 50;
+
+bool bluetooth_status = INPUT_ON;
+bool aux_status = INPUT_OFF;
+
+char current_track[STR_LEN] = "Song Title";
+char current_artist[STR_LEN] = "Artist Name";
+char current_album[STR_LEN] = "Album Name";
+uint16_t track_runtime_sec = 125;
+
+uint32_t runtime_total_sec = 3600;
+uint32_t next_change_sec = 3600000;
+
+// Menu Control
+uint8_t cursor = 0;
+bool in_sub_menu = false;
+menu_type_t current_menu = MENU_MAIN;
 
 // Rotary encoder configuration
 static rotary_config_t encoder1 = {
@@ -35,10 +66,9 @@ static rotary_config_t encoder1 = {
     .rotation_debounce_ms = 100,
 };
 
-// Menu system
-static menu_system_t menu_sys;
-
 // SPI bus/display init
+spi_device_handle_t spi_oled1;
+
 static void spi_init(void)
 {
     spi_bus_config_t buscfg = {
@@ -62,59 +92,6 @@ static void spi_init(void)
     ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &devcfg1, &spi_oled1));
 }
 
-// Task to update menu values
-void value_update_task(void *arg)
-{
-    menu_values_t values;
-    
-    // Static values
-    values.voltage = 12.5f;
-    values.current = 2.3f;
-    values.power = 28.75f;
-    values.temperature = 45.2f;
-    
-    values.equalizer_band0 = 50;
-    values.equalizer_band1 = 50;
-    values.equalizer_band2 = 50;
-    values.equalizer_band3 = 50;
-    values.equalizer_band4 = 50;
-    values.equalizer_band5 = 50;
-    values.equalizer_band6 = 50;
-    values.equalizer_band7 = 50;
-
-    values.bluetooth_status = INPUT_ON;
-    values.aux_status = INPUT_OFF;
-
-    values.current_track = "Song Title";
-    values.current_artist = "Artist Name";
-    values.track_runtime_sec = 125;
-
-    values.volume = 67;
-    
-    values.runtime_total_sec = 3600;
-    values.next_change_sec = 3600000;
-        
-    while (1) {
-        // Update menu with values
-        menu_update_values(&menu_sys, &values);
-        
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
-}
-
-// Menu update task
-void menu_task(void *arg)
-{
-    menu_system_t *menu_sys = (menu_system_t *)arg;
-    
-    menu_system_refresh(menu_sys);
-    
-    while (1) {
-        menu_system_update(menu_sys);
-        vTaskDelay(pdMS_TO_TICKS(50));
-    }
-}
-
 void app_main(void)
 {
     vTaskDelay(pdMS_TO_TICKS(100));
@@ -124,32 +101,76 @@ void app_main(void)
     ESP_ERROR_CHECK(oled_init(spi_oled1));
     vTaskDelay(pdMS_TO_TICKS(200));
     
-    clear(spi_oled1);
-    vTaskDelay(pdMS_TO_TICKS(100));
-    
     ESP_ERROR_CHECK(rotary_init(&encoder1));
     vTaskDelay(pdMS_TO_TICKS(100));
+
+    while (1) {
+        if (check_rotary_button_pressed(&encoder1)) {
+            if (!in_sub_menu) {
+                switch (cursor) {
+                    case 0 : 
+                        break;
+
+                    case 1 :
+                        current_menu = MENU_VOLUME;
+                        cursor = 0;
+                        in_sub_menu = true;
+                        break;
+
+                    case 2 :
+                        current_menu = MENU_METADATA;
+                        cursor = 0;
+                        in_sub_menu = true;
+                        break;
+
+                    case 3 :
+                        current_menu = MENU_EQ;
+                        cursor = 0;
+                        in_sub_menu = true;
+                        break;
+
+                    case 4 :
+                        current_menu = MENU_INPUT_SELECT;
+                        cursor = 0;
+                        in_sub_menu = true;
+                        break;
+
+                    case 5 :
+                        current_menu = MENU_PIVT;
+                        cursor = 0;
+                        in_sub_menu = true;
+                        break;
+
+                    case 6 :
+                        current_menu = MENU_RUNTIME;
+                        cursor = 0;
+                        in_sub_menu = true;
+                        break;
+
+                    default :
+                        break;
+
+                }
+            } else {
+                current_menu = MENU_MAIN;
+                cursor = 0;
+                in_sub_menu = false;
+            }
+        }
+
+        cursor += get_rotary_direction(&encoder1);
+        draw_menu(spi_oled1, cursor, current_menu);
+
+        vTaskDelay(100);
+    }
     
-    ESP_ERROR_CHECK(menu_system_init(&menu_sys, &encoder1, spi_oled1));
-    vTaskDelay(pdMS_TO_TICKS(100));
-    
-    // Create value update task
-    xTaskCreate(
-        value_update_task,
-        "ValueUpdateTask",
-        2048,
-        NULL,
-        3,
-        NULL
-    );
-    
-    // Create menu task
-    xTaskCreate(
-        menu_task,
-        "MenuTask",
-        4096,
-        &menu_sys,
-        5,
-        NULL
-    );
+    // // Create menu task
+    // xTaskCreate(
+    //     menu_task,
+    //     "MenuTask",
+    //     4096,
+    //     &menu_sys,
+    //     5,
+    //     NULL
+    // );
 }

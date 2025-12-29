@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include "esp_timer.h"
 #include "esp_attr.h"
-#include "driver/pulse_cnt.h"
-#include "driver/gpio.h"
 #include "rotary_encoder.h"
 
 static bool isr_service_installed = false;
