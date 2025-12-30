@@ -52,8 +52,6 @@ uint16_t track_runtime_sec = 125;
 uint32_t runtime_total_sec = 3600;
 uint32_t next_change_sec = 3600000;
 
-// Menu handled by user_interface component (state moved to user_interface/menu module)
-
 // Rotary encoder configuration
 static rotary_config_t encoder1 = {
     .pin_a = ROTARY_A,
