@@ -24,8 +24,6 @@ extern uint16_t track_runtime_sec;
 extern uint32_t runtime_total_sec;
 extern uint32_t next_change_sec;
 
-
-
 const char main_menu[][STR_LEN] = {
     "-Plasma Tweeter-",
     " 1. Volume      ",
@@ -36,41 +34,6 @@ const char main_menu[][STR_LEN] = {
     " 6. Runtime     ",
     ""
 };
-
-// const char metadata_menu[][STR_LEN] = {
-//     "Artist",
-//     "Album",
-//     "Track",
-//     "Runtime"
-// }; 
-
-// const char eq_menu[][STR_LEN] = {
-//     "Band 0:",
-//     "Band 1:",
-//     "Band 2:",
-//     "Band 3:",
-//     "Band 4:",
-//     "Band 5:",
-//     "Band 6:",
-//     "Band 7:",
-// };
-
-// const char input_select_menu[][STR_LEN] = {
-//     "Bluetooth:",
-//     "AUX:"
-// };
-
-// const char pivt_menu[][STR_LEN] = {
-//     "PWR:",
-//     "TMP:",
-//     "VDC:",
-//     "IDC:"
-// };
-
-// const char runtime_menu[][STR_LEN] = {
-//     "RUNTIME:",
-//     "CHANGE:"
-// };
 
 // const size_t main_menu_len = sizeof(main_menu) / sizeof(main_menu[0]);
 // const size_t metadata_menu_len = sizeof(metadata_menu) / sizeof(metadata_menu[0]);

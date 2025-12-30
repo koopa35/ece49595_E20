@@ -54,7 +54,9 @@ uint32_t next_change_sec = 3600000;
 
 // Menu Control
 uint8_t cursor = 0;
+uint8_t prev_cusor = 0;
 bool in_sub_menu = false;
+bool need_refresh = true;
 menu_type_t current_menu = MENU_MAIN;
 
 // Rotary encoder configuration
@@ -115,36 +117,42 @@ void app_main(void)
                         current_menu = MENU_VOLUME;
                         cursor = 0;
                         in_sub_menu = true;
+                        need_refresh = true;
                         break;
 
                     case 2 :
                         current_menu = MENU_METADATA;
                         cursor = 0;
                         in_sub_menu = true;
+                        need_refresh = true;
                         break;
 
                     case 3 :
                         current_menu = MENU_EQ;
                         cursor = 0;
                         in_sub_menu = true;
+                        need_refresh = true;
                         break;
 
                     case 4 :
                         current_menu = MENU_INPUT_SELECT;
                         cursor = 0;
                         in_sub_menu = true;
+                        need_refresh = true;
                         break;
 
                     case 5 :
                         current_menu = MENU_PIVT;
                         cursor = 0;
                         in_sub_menu = true;
+                        need_refresh = true;
                         break;
 
                     case 6 :
                         current_menu = MENU_RUNTIME;
                         cursor = 0;
                         in_sub_menu = true;
+                        need_refresh = true;
                         break;
 
                     default :
@@ -155,11 +163,21 @@ void app_main(void)
                 current_menu = MENU_MAIN;
                 cursor = 0;
                 in_sub_menu = false;
+                need_refresh = true;
             }
         }
 
         cursor += get_rotary_direction(&encoder1);
-        draw_menu(spi_oled1, cursor, current_menu);
+
+        if (prev_cusor != cursor) {
+            need_refresh = true;
+            prev_cusor = cursor;
+        }
+
+        if (need_refresh){
+            draw_menu(spi_oled1, cursor, current_menu);
+            need_refresh = false;
+        }
 
         vTaskDelay(100);
     }
