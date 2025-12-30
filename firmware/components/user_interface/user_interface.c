@@ -4,6 +4,14 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#define MAIN_MENU_ITEMS 6
+#define VOLUME_MENU_ITEMS 1
+#define METADATA_MENU_ITEMS 3
+#define EQ_MENU_ITEMS 7
+#define INPUT_SELECT_MENU_ITEMS 2
+#define PIVT_MENU_ITEMS 4
+#define RUNTIME_MENU_ITEMS 2
+
 extern float voltage;
 extern float current;
 extern float power;
@@ -37,16 +45,9 @@ const char main_menu[][STR_LEN] = {
     ""
 };
 
-// const size_t main_menu_len = sizeof(main_menu) / sizeof(main_menu[0]);
-// const size_t metadata_menu_len = sizeof(metadata_menu) / sizeof(metadata_menu[0]);
-// const size_t eq_menu_len = sizeof(eq_menu) / sizeof(eq_menu[0]);
-// const size_t input_select_menu_len = sizeof(input_select_menu) / sizeof(input_select_menu[0]);
-// const size_t pivt_menu_len = sizeof(pivt_menu) / sizeof(pivt_menu[0]);
-// const size_t runtime_menu_len = sizeof(runtime_menu) / sizeof(runtime_menu[0]);
-
 // Menu state variables
-static uint8_t cursor = 0;
-static uint8_t prev_cursor = 0;
+static int8_t cursor = 0;
+static int8_t prev_cursor = 0;
 static bool in_sub_menu = false;
 static bool need_refresh = true;
 static menu_type_t current_menu = MENU_MAIN;
@@ -111,6 +112,16 @@ void menu_task(void *pvParameters)
         }
 
         cursor += get_rotary_direction(encoder);
+        cursor = (cursor < 0) ? 0 : cursor;
+        cursor = cursor % (
+            (current_menu == MENU_MAIN) ? MAIN_MENU_ITEMS :
+            (current_menu == MENU_VOLUME) ? VOLUME_MENU_ITEMS :
+            (current_menu == MENU_METADATA) ? METADATA_MENU_ITEMS :
+            (current_menu == MENU_EQ) ? EQ_MENU_ITEMS :
+            (current_menu == MENU_INPUT_SELECT) ? INPUT_SELECT_MENU_ITEMS :
+            (current_menu == MENU_PIVT) ? PIVT_MENU_ITEMS :
+            (current_menu == MENU_RUNTIME) ? RUNTIME_MENU_ITEMS : 1
+        );
 
         if (cursor != prev_cursor) {
             prev_cursor = cursor;
@@ -122,7 +133,7 @@ void menu_task(void *pvParameters)
             need_refresh = false;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(50));  // 500ms is very sluggish for UI
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
