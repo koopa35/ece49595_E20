@@ -52,12 +52,7 @@ uint16_t track_runtime_sec = 125;
 uint32_t runtime_total_sec = 3600;
 uint32_t next_change_sec = 3600000;
 
-// Menu Control
-uint8_t cursor = 0;
-uint8_t prev_cusor = 0;
-bool in_sub_menu = false;
-bool need_refresh = true;
-menu_type_t current_menu = MENU_MAIN;
+// Menu handled by user_interface component (state moved to user_interface/menu module)
 
 // Rotary encoder configuration
 static rotary_config_t encoder1 = {
@@ -106,89 +101,10 @@ void app_main(void)
     ESP_ERROR_CHECK(rotary_init(&encoder1));
     vTaskDelay(pdMS_TO_TICKS(100));
 
+    ESP_ERROR_CHECK(start_menu_task(spi_oled1, &encoder1));
+
     while (1) {
-        if (check_rotary_button_pressed(&encoder1)) {
-            if (!in_sub_menu) {
-                switch (cursor) {
-                    case 0 : 
-                        break;
-
-                    case 1 :
-                        current_menu = MENU_VOLUME;
-                        cursor = 0;
-                        in_sub_menu = true;
-                        need_refresh = true;
-                        break;
-
-                    case 2 :
-                        current_menu = MENU_METADATA;
-                        cursor = 0;
-                        in_sub_menu = true;
-                        need_refresh = true;
-                        break;
-
-                    case 3 :
-                        current_menu = MENU_EQ;
-                        cursor = 0;
-                        in_sub_menu = true;
-                        need_refresh = true;
-                        break;
-
-                    case 4 :
-                        current_menu = MENU_INPUT_SELECT;
-                        cursor = 0;
-                        in_sub_menu = true;
-                        need_refresh = true;
-                        break;
-
-                    case 5 :
-                        current_menu = MENU_PIVT;
-                        cursor = 0;
-                        in_sub_menu = true;
-                        need_refresh = true;
-                        break;
-
-                    case 6 :
-                        current_menu = MENU_RUNTIME;
-                        cursor = 0;
-                        in_sub_menu = true;
-                        need_refresh = true;
-                        break;
-
-                    default :
-                        break;
-
-                }
-            } else {
-                current_menu = MENU_MAIN;
-                cursor = 0;
-                in_sub_menu = false;
-                need_refresh = true;
-            }
-        }
-
-        cursor += get_rotary_direction(&encoder1);
-
-        if (prev_cusor != cursor) {
-            need_refresh = true;
-            prev_cusor = cursor;
-        }
-
-        if (need_refresh){
-            draw_menu(spi_oled1, cursor, current_menu);
-            need_refresh = false;
-        }
-
-        vTaskDelay(100);
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
-    
-    // // Create menu task
-    // xTaskCreate(
-    //     menu_task,
-    //     "MenuTask",
-    //     4096,
-    //     &menu_sys,
-    //     5,
-    //     NULL
-    // );
+
 }
