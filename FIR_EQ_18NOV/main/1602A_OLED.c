@@ -204,7 +204,7 @@ esp_err_t custom_char(spi_device_handle_t spi_oled, uint8_t location, uint8_t ch
 esp_err_t freq(spi_device_handle_t spi_oled, uint8_t *spectrum, size_t len)
 {
     home(spi_oled);
-    ESP_LOGI("OLED", "printing freq to oled: len = %d : {%d,%d,%d,%d,%d,%d,%d,%d}",len, spectrum[0],spectrum[1],spectrum[2],spectrum[3], spectrum[4], spectrum[5],spectrum[6],spectrum[7]);
+    //ESP_LOGI("OLED", "printing freq to oled: len = %d : {%d,%d,%d,%d,%d,%d,%d,%d}",len, spectrum[0],spectrum[1],spectrum[2],spectrum[3], spectrum[4], spectrum[5],spectrum[6],spectrum[7]);
     
     char linebot[17] = {0};
 

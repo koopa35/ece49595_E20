@@ -177,7 +177,7 @@ void generate_FIR_coefficients(float *fir_coeffs, const unsigned int fir_len, co
 
         if ((!is_odd) && ((i == fir_len /2)))
         {
-            fir_coeffs[i] += 0.25;
+            //fir_coeffs[i] += 0.25;
         }
 
         fir_coeffs[i] *= fir_window[i];
@@ -465,7 +465,7 @@ void task_oled(void *pvParameters)
 void print_to_OLED(int num_bins, float* spectrum_binned)
 {
     float max = -10.0;
-    float min = -60.0;
+    float min = -45.0;
     uint8_t spectrum[NUM_BINS];
     
     for (int i = 0; i < NUM_BINS; i++)
