@@ -16,14 +16,11 @@
 #include "1602A_OLED.h"
 #include "main.h"
 #include "sdm.h"
+#include "filters.h"
 
 #if CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ == 160
     static const long cpu_freq = 160000000;
 #endif
-
-#define MOSI_PIN 5
-#define SCLK_PIN 4
-#define CS_PIN 6
 
 #define NUM_BANDS 8
 #define FIR_COEFFS_LEN 64
@@ -33,9 +30,6 @@ float band_edges[NUM_BANDS + 1] = {0, 350.0, 1100.0, 2200.0, 4000.0, 6000.0, 800
 int freq_bins[] = {0, 100, 350, 700, 1100, 1600, 2200, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10500, 12000, SAMPLE_RATE/2};
 
 fir_f32_t fir_handles[NUM_BANDS];
-fir_f32_t fir_low;
-fir_f32_t fir_mid;
-fir_f32_t fir_high;
 const int32_t fir_len = FIR_COEFFS_LEN;
 const int32_t fir_decim = 1;
 
@@ -132,60 +126,6 @@ static void init_double_buffer(void)
     buffer_length = BUF_SIZE;
 }
 
-static void spi_init()
-{
-    // 1. SPI Bus
-    spi_bus_config_t buscfg = {
-        .mosi_io_num = MOSI_PIN,
-        .miso_io_num = -1,
-        .sclk_io_num = SCLK_PIN,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = 64
-    };
-    ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
-
-    // 2. SPI device
-    spi_device_interface_config_t devcfg = {
-        .mode = 3,
-        .clock_speed_hz = 1000000,
-        .spics_io_num = CS_PIN,
-        .queue_size = 16,
-        .flags = SPI_DEVICE_HALFDUPLEX
-    };
-
-    ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &devcfg, &spi_oled));
-}
-
-void generate_FIR_coefficients(float *fir_coeffs, const unsigned int fir_len, const float ft)
-{
-
-    // Even or odd length of the FIR filter
-    const bool is_odd = (fir_len % 2) ? (true) : (false);
-    const float fir_order = (float)(fir_len - 1);
-
-    // Window coefficients
-    float *fir_window = (float *)malloc(fir_len * sizeof(float));
-    dsps_wind_blackman_f32(fir_window, fir_len);
-
-    for (int i = 0; i < fir_len; i++) {
-        if ((i == fir_order / 2) && (is_odd)) {
-            fir_coeffs[i] = 2 * ft;
-        } else {
-            fir_coeffs[i] = sinf((2 * M_PI * ft * (i - fir_order / 2))) / (M_PI * (i - fir_order / 2));
-        }
-
-        if ((!is_odd) && ((i == fir_len /2)))
-        {
-            //fir_coeffs[i] += 0.25;
-        }
-
-        fir_coeffs[i] *= fir_window[i];
-    }
-
-    free(fir_window);
-}
-
 void generate_EQ_filters(int N_band, int N_fir, float* gains_arr, float* edges, float* delay)
 {
     for (int i = 0; i < N_band; i++)
@@ -214,18 +154,16 @@ void apply_EQ(int N_buf, int N_band, float* fir_out, float* eq_gains, fir_f32_t*
     memset(fir_out, 0, N_buf * sizeof(*fir_out));
 
     float temp_out[N_buf];
-    for (int i = 0; i < N_band; i++)
+    for (int i = 0; i < N_band; i++) // for each band
     {
         dsps_fir_f32(&fir_handle_arr[i], fir_in, temp_out, N_buf);
 
-        for (int j = 0; j < N_buf; j++)
+        for (int j = 0; j < N_buf; j++) // for each element in the buffer in this band apply gain
         {
             fir_out[j] += temp_out[j] * eq_gains[i];
         }
     }
 }
-
-
 
 //--------------------------ENTRANCE GATEWAY----------------------------
 
@@ -236,7 +174,7 @@ void app_main(void)
     uint8_t freq_test[8] = {0,1,2,3,4,5,6,7};
     //----------OLED INITIALIZATION-------
     vTaskDelay(pdMS_TO_TICKS(100));
-    spi_init();
+    spi_init(&spi_oled);
     vTaskDelay(pdMS_TO_TICKS(100));
     oled_init(spi_oled);
     vTaskDelay(pdMS_TO_TICKS(1000));
@@ -320,7 +258,7 @@ void task_adc_sample(void *pvParameters)
             {
                 adc_digi_output_data_t *p = (adc_digi_output_data_t *)&result[i*sizeof(adc_digi_output_data_t)]; 
                 uint32_t raw = p->type2.data;
-                block.data[i]  = (int16_t)raw; // - 1094; 
+                block.data[i]  = (int16_t)raw; 
                 buf_sum += block.data[i];
             }
 

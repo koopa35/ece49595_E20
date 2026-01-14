@@ -48,8 +48,11 @@
 #define OLED_LANG_RU        0x02
 #define OLED_LANG_EU2       0x03
 
-// GPIO PINS
-
+// GPIO PINS FOR SPI
+//
+#define MOSI_PIN 5
+#define SCLK_PIN 4
+#define CS_PIN 6
 
 // Driver context
 typedef struct {
@@ -65,6 +68,7 @@ typedef struct {
     uint8_t rows;
 } silvervest_oled_t;
 
+void spi_init(spi_device_handle_t* a_spi_oled);
 esp_err_t oled_init(spi_device_handle_t spi_oled);
 esp_err_t clear(spi_device_handle_t spi_oled);
 esp_err_t home(spi_device_handle_t spi_oled);

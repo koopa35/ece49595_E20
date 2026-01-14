@@ -6,6 +6,30 @@
 #include "driver/gpio.h"
 #include "1602A_OLED.h"
 
+void spi_init(spi_device_handle_t* a_spi_oled)
+{
+    // 1. SPI Bus
+    spi_bus_config_t buscfg = {
+        .mosi_io_num = MOSI_PIN,
+        .miso_io_num = -1,
+        .sclk_io_num = SCLK_PIN,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 64
+    };
+    ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
+
+    // 2. SPI device
+    spi_device_interface_config_t devcfg = {
+        .mode = 3,
+        .clock_speed_hz = 1000000,
+        .spics_io_num = CS_PIN,
+        .queue_size = 16,
+        .flags = SPI_DEVICE_HALFDUPLEX
+    };
+
+    ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &devcfg, a_spi_oled));
+}
 
 esp_err_t oled_init(spi_device_handle_t spi_oled)
 {
