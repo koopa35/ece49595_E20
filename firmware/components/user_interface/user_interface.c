@@ -164,6 +164,16 @@ esp_err_t draw_menu(spi_device_handle_t spi_oled, uint8_t cursor, menu_type_t me
                 set_cursor(spi_oled, row, 0);
                 print(spi_oled, main_menu[idx]);
             }
+
+            // selection ">" indicator
+            if (cursor == 0) {
+                set_cursor(spi_oled, 1, 0);
+                print(spi_oled, ">");
+            } else {
+                set_cursor(spi_oled, 0, 0);
+                print(spi_oled, ">");
+            }
+
             break;
         case MENU_VOLUME :
             for (int row = 0; row < 2; row++) {

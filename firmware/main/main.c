@@ -13,13 +13,18 @@
 #include "rotary_encoder.h"
 #include "user_interface.h"
 
-#define ROTARY_A 33
-#define ROTARY_B 25
-#define ROTARY_BUTTON 26
+#define ROTARY0_A 15
+#define ROTARY0_B 16
+#define ROTARY0_BUTTON 17
 
-#define SCLK_PIN 18
-#define MOSI_PIN 23
-#define CS_OLED1_PIN 32
+#define ROTARY1_A 18
+#define ROTARY1_B 8
+#define ROTARY1_BUTTON 3
+
+#define SCLK_PIN 4
+#define MOSI_PIN 5
+#define CS_OLED0_PIN 6
+#define CS_OLED1_PIN 7
 
 #define INPUT_ON 1
 #define INPUT_OFF 0
@@ -53,15 +58,24 @@ uint32_t runtime_total_sec = 3600;
 uint32_t next_change_sec = 3600000;
 
 // Rotary encoder configuration
+static rotary_config_t encoder0 = {
+    .pin_a = ROTARY0_A,
+    .pin_b = ROTARY0_B,
+    .button_pin = ROTARY0_BUTTON,
+    .debounce_ms = 500,
+    .rotation_debounce_ms = 100,
+};
+
 static rotary_config_t encoder1 = {
-    .pin_a = ROTARY_A,
-    .pin_b = ROTARY_B,
-    .button_pin = ROTARY_BUTTON,
+    .pin_a = ROTARY1_A,
+    .pin_b = ROTARY1_B,
+    .button_pin = ROTARY1_BUTTON,
     .debounce_ms = 500,
     .rotation_debounce_ms = 100,
 };
 
 // SPI bus/display init
+spi_device_handle_t spi_oled0;
 spi_device_handle_t spi_oled1;
 
 static void spi_init(void)
@@ -75,6 +89,16 @@ static void spi_init(void)
         .max_transfer_sz = 64
     };
     ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO));
+
+    spi_device_interface_config_t devcfg0 = {
+        .mode = 3,
+        .clock_speed_hz = 1000000,
+        .spics_io_num = CS_OLED0_PIN,
+        .queue_size = 16,
+        .flags = SPI_DEVICE_HALFDUPLEX
+    };
+
+    ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &devcfg0, &spi_oled0));
 
     spi_device_interface_config_t devcfg1 = {
         .mode = 3,
@@ -93,13 +117,18 @@ void app_main(void)
     spi_init();
     vTaskDelay(pdMS_TO_TICKS(100));
     
+    ESP_ERROR_CHECK(oled_init(spi_oled0));
     ESP_ERROR_CHECK(oled_init(spi_oled1));
     vTaskDelay(pdMS_TO_TICKS(200));
+
+
+    uint8_t spectrum[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1};
+    freq(spi_oled1, spectrum, 16);
     
-    ESP_ERROR_CHECK(rotary_init(&encoder1));
+    ESP_ERROR_CHECK(rotary_init(&encoder0));
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    ESP_ERROR_CHECK(start_menu_task(spi_oled1, &encoder1));
+    ESP_ERROR_CHECK(start_menu_task(spi_oled0, &encoder0));
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
