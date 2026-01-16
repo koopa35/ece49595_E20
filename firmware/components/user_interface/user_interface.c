@@ -4,7 +4,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define MAIN_MENU_ITEMS 6
+#define MAIN_MENU_ITEMS 7
 #define VOLUME_MENU_ITEMS 1
 #define METADATA_MENU_ITEMS 3
 #define EQ_MENU_ITEMS 7
@@ -12,29 +12,7 @@
 #define PIVT_MENU_ITEMS 4
 #define RUNTIME_MENU_ITEMS 2
 
-extern float voltage;
-extern float current;
-extern float power;
-extern float temperature;
-extern uint16_t volume;
-extern uint16_t equalizer_band0;
-extern uint16_t equalizer_band1;
-extern uint16_t equalizer_band2;
-extern uint16_t equalizer_band3;
-extern uint16_t equalizer_band4;
-extern uint16_t equalizer_band5;
-extern uint16_t equalizer_band6;
-extern uint16_t equalizer_band7;
-extern bool bluetooth_status;
-extern bool aux_status;
-extern char current_track[STR_LEN];
-extern char current_artist[STR_LEN];
-extern char current_album[STR_LEN];
-extern uint16_t track_runtime_sec;
-extern uint32_t runtime_total_sec;
-extern uint32_t next_change_sec;
-
-const char main_menu[][STR_LEN] = {
+static const char main_menu[][STR_LEN] = {
     "-Plasma Tweeter-",
     " 1. Volume      ",
     " 2. Metadata    ",
@@ -48,14 +26,33 @@ const char main_menu[][STR_LEN] = {
 // Menu state variables
 static int8_t cursor = 0;
 static int8_t prev_cursor = 0;
+static int8_t update = 0;
 static bool in_sub_menu = false;
 static bool need_refresh = true;
 static menu_type_t current_menu = MENU_MAIN;
+static bool update_10x = false;
 
 typedef struct {
     spi_device_handle_t spi_oled;
-    rotary_config_t *encoder;
+    rotary_config_t *encoder_menu;
+    rotary_config_t *encoder_control;
 } menu_task_args_t;
+
+esp_err_t start_menu_task(spi_device_handle_t spi_oled, rotary_config_t *encoder_menu, rotary_config_t *encoder_control)
+{
+    menu_task_args_t *args = malloc(sizeof(menu_task_args_t));
+    if (args == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
+
+    args->spi_oled = spi_oled;
+    args->encoder_menu = encoder_menu;
+    args->encoder_control = encoder_control;
+
+    xTaskCreate(menu_task, "MenuTask", 4096, args, 5, NULL);
+
+    return ESP_OK;
+}
 
 void menu_task(void *pvParameters)
 {
@@ -66,14 +63,25 @@ void menu_task(void *pvParameters)
     }
 
     spi_device_handle_t spi_oled = args->spi_oled;
-    rotary_config_t *encoder = args->encoder;
+    rotary_config_t *encoder_menu = args->encoder_menu;
+    rotary_config_t *encoder_control = args->encoder_control;
 
     free(args);   // free early; task owns the data now
 
     while (1) {
-        if (check_rotary_button_pressed(encoder)) {
+        // check for button press to enable 10x adjustments
+        if (check_rotary_button_pressed(encoder_control)) {
+            update_10x = !update_10x;
+        }
+
+        // check for button press to enter/exit sub-menus
+        if (check_rotary_button_pressed(encoder_menu)) {
             if (!in_sub_menu) {
                 switch (cursor) {
+                    case 0:
+                        current_menu = MENU_VOLUME;
+                        in_sub_menu = true;
+                        break;
                     case 1:
                         current_menu = MENU_VOLUME;
                         in_sub_menu = true;
@@ -111,7 +119,30 @@ void menu_task(void *pvParameters)
             }
         }
 
-        cursor += get_rotary_direction(encoder);
+        // update menu item based on rotary encoder
+        update += get_rotary_direction(encoder_control) * (update_10x ? 10 : 1);
+        if (update != 0) {
+            switch (current_menu) {
+                case MENU_MAIN :
+                    volume = (volume + update > 100) ? 100 : (volume + update < 0) ? 0 : volume + update;
+                    break;
+                case MENU_VOLUME :
+                    volume = (volume + update > 100) ? 100 : (volume + update < 0) ? 0 : volume + update;
+                    need_refresh = true;
+                    break;
+                case MENU_EQ :
+                    equalizer_band[cursor] = (equalizer_band[cursor] + update > 100) ? 100 : (equalizer_band[cursor] + update < 0) ? 0 : equalizer_band[cursor] + update;
+                    need_refresh = true;
+                    break;
+                default :
+                    break;
+            
+            }
+            update = 0;
+        }
+
+        // clamp cursor within menu bounds
+        cursor += get_rotary_direction(encoder_menu);
         cursor = (cursor < 0) ? 0 : cursor;
         cursor = cursor % (
             (current_menu == MENU_MAIN) ? MAIN_MENU_ITEMS :
@@ -123,6 +154,7 @@ void menu_task(void *pvParameters)
             (current_menu == MENU_RUNTIME) ? RUNTIME_MENU_ITEMS : 1
         );
 
+        // update display if cursor changed
         if (cursor != prev_cursor) {
             prev_cursor = cursor;
             need_refresh = true;
@@ -135,21 +167,6 @@ void menu_task(void *pvParameters)
 
         vTaskDelay(pdMS_TO_TICKS(500));
     }
-}
-
-esp_err_t start_menu_task(spi_device_handle_t spi_oled, rotary_config_t *encoder)
-{
-    menu_task_args_t *args = malloc(sizeof(menu_task_args_t));
-    if (args == NULL) {
-        return ESP_ERR_NO_MEM;
-    }
-
-    args->spi_oled = spi_oled;
-    args->encoder = encoder;
-
-    xTaskCreate(menu_task, "MenuTask", 4096, args, 5, NULL);
-
-    return ESP_OK;
 }
 
 esp_err_t draw_menu(spi_device_handle_t spi_oled, uint8_t cursor, menu_type_t menu) {
@@ -214,20 +231,8 @@ esp_err_t draw_menu(spi_device_handle_t spi_oled, uint8_t cursor, menu_type_t me
                 set_cursor(spi_oled, row, 0);
                 
                 char eq_str[STR_LEN];
-                uint16_t band_value = 0;
-                switch (idx) {
-                    case 0: band_value = equalizer_band0; break;
-                    case 1: band_value = equalizer_band1; break;
-                    case 2: band_value = equalizer_band2; break;
-                    case 3: band_value = equalizer_band3; break;
-                    case 4: band_value = equalizer_band4; break;
-                    case 5: band_value = equalizer_band5; break;
-                    case 6: band_value = equalizer_band6; break;
-                    case 7: band_value = equalizer_band7; break;
-                    default: break;
-                }
-                    snprintf(eq_str, STR_LEN, "Band %d: %*d%%", idx, 7, band_value);
-                    print(spi_oled, eq_str);
+                snprintf(eq_str, STR_LEN, "Band %d: %*d%%", idx, 7, equalizer_band[idx]);
+                print(spi_oled, eq_str);
                 }
             break;
         case MENU_INPUT_SELECT :

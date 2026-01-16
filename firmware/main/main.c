@@ -37,14 +37,9 @@ float temperature = 45.2;
 
 uint16_t volume = 67;
 
-uint16_t equalizer_band0 = 50;
-uint16_t equalizer_band1 = 50;
-uint16_t equalizer_band2 = 50;
-uint16_t equalizer_band3 = 50;
-uint16_t equalizer_band4 = 50;
-uint16_t equalizer_band5 = 50;
-uint16_t equalizer_band6 = 50;
-uint16_t equalizer_band7 = 50;
+uint16_t equalizer_band[EQ_BANDS] = {
+    50, 50, 50, 50, 50, 50, 50, 50
+};
 
 bool bluetooth_status = INPUT_ON;
 bool aux_status = INPUT_OFF;
@@ -120,15 +115,15 @@ void app_main(void)
     ESP_ERROR_CHECK(oled_init(spi_oled0));
     ESP_ERROR_CHECK(oled_init(spi_oled1));
     vTaskDelay(pdMS_TO_TICKS(200));
-
-
-    uint8_t spectrum[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 7, 6, 5, 4, 3, 2, 1};
-    freq(spi_oled1, spectrum, 16);
     
     ESP_ERROR_CHECK(rotary_init(&encoder0));
+    ESP_ERROR_CHECK(rotary_init(&encoder1));
     vTaskDelay(pdMS_TO_TICKS(100));
 
-    ESP_ERROR_CHECK(start_menu_task(spi_oled0, &encoder0));
+    ESP_ERROR_CHECK(start_menu_task(spi_oled0, &encoder0, &encoder1));
+
+    uint8_t spectrum[16] = {0,1,2,3,4,5,6,7,8,7,6,5,4,3,2,1};
+    freq(spi_oled1, spectrum, 16);
 
     while (1) {
         vTaskDelay(pdMS_TO_TICKS(1000));
