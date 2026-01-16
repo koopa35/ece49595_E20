@@ -1,8 +1,8 @@
-#include <stdio.h>
 #include "user_interface.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "global_defs.h"
 
 #define MAIN_MENU_ITEMS 7
 #define VOLUME_MENU_ITEMS 1
@@ -31,6 +31,7 @@ static bool in_sub_menu = false;
 static bool need_refresh = true;
 static menu_type_t current_menu = MENU_MAIN;
 static bool update_10x = false;
+static bool prev_input_select = BLUETOOTH;
 
 typedef struct {
     spi_device_handle_t spi_oled;
@@ -69,6 +70,10 @@ void menu_task(void *pvParameters)
     free(args);   // free early; task owns the data now
 
     while (1) {
+        // check for source select change
+        
+
+
         // check for button press to enable 10x adjustments
         if (check_rotary_button_pressed(encoder_control)) {
             update_10x = !update_10x;

@@ -1,11 +1,12 @@
 #pragma once
 
+#include <stdint.h>
+#include <stdbool.h>
 #include "esp_err.h"
+
 #include "rotary_encoder.h"
 #include "1602A_OLED.h"
-
-#define STR_LEN 20
-#define EQ_BANDS 8
+#include "global_defs.h"
 
 extern float voltage;
 extern float current;

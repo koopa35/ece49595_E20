@@ -1,7 +1,9 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "esp_err.h"
+
 #include "driver/spi_master.h"
 
 #define OLED_DATA            1
