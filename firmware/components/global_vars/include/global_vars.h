@@ -24,3 +24,5 @@ extern uint16_t track_runtime_sec;
 
 extern uint32_t runtime_total_sec;
 extern uint32_t next_change_sec;
+
+extern uint8_t spectrum[16];

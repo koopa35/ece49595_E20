@@ -34,19 +34,23 @@ static bool prev_input_select = BLUETOOTH;
 static bool prev_display_power = ON;
 
 typedef struct {
-    spi_device_handle_t spi_oled;
+    spi_device_handle_t spi_oled0;
+    spi_device_handle_t spi_oled1;
+    uint8_t *spectrum;
     rotary_config_t *encoder_menu;
     rotary_config_t *encoder_control;
 } menu_task_args_t;
 
-esp_err_t start_menu_task(spi_device_handle_t spi_oled, rotary_config_t *encoder_menu, rotary_config_t *encoder_control)
+esp_err_t start_menu_task(spi_device_handle_t spi_oled0, spi_device_handle_t spi_oled1, uint8_t spectrum[16], rotary_config_t *encoder_menu, rotary_config_t *encoder_control)
 {
     menu_task_args_t *args = malloc(sizeof(menu_task_args_t));
     if (args == NULL) {
         return ESP_ERR_NO_MEM;
     }
 
-    args->spi_oled = spi_oled;
+    args->spi_oled0 = spi_oled0;
+    args->spi_oled1 = spi_oled1;
+    args->spectrum = spectrum;
     args->encoder_menu = encoder_menu;
     args->encoder_control = encoder_control;
 
@@ -63,16 +67,19 @@ void menu_task(void *pvParameters)
         return;
     }
 
-    spi_device_handle_t spi_oled = args->spi_oled;
+    spi_device_handle_t spi_oled0 = args->spi_oled0;
+    spi_device_handle_t spi_oled1 = args->spi_oled1;
+    uint8_t *spectrum = args->spectrum;
     rotary_config_t *encoder_menu = args->encoder_menu;
     rotary_config_t *encoder_control = args->encoder_control;
 
     free(args);   // free early; task owns the data now
 
     while (1) {
-        // if
+        // Handle display power state
         if (display_power == OFF) {
-            clear(spi_oled);
+            clear(spi_oled0);
+            clear(spi_oled1);
             prev_display_power = OFF;
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
@@ -83,10 +90,15 @@ void menu_task(void *pvParameters)
             }
         }
 
+        // draw frequency spectrum on second display
+        freq(spi_oled1, spectrum, 16);
+
         // check for source select change
         if (input_select != prev_input_select) {
             prev_input_select = input_select;
-            need_refresh = true;
+            if (in_sub_menu && current_menu == MENU_INPUT_SELECT) {
+                need_refresh = true;
+            }
         }
 
         // check for button press to enable 10x adjustments
@@ -181,7 +193,7 @@ void menu_task(void *pvParameters)
         }
 
         if (need_refresh) {
-            draw_menu(spi_oled, cursor, current_menu);
+            draw_menu(spi_oled0, cursor, current_menu);
             need_refresh = false;
         }
 
@@ -189,129 +201,129 @@ void menu_task(void *pvParameters)
     }
 }
 
-esp_err_t draw_menu(spi_device_handle_t spi_oled, uint8_t cursor, menu_type_t menu) {
+esp_err_t draw_menu(spi_device_handle_t spi_oled0, uint8_t cursor, menu_type_t menu) {
 
-    clear(spi_oled);
+    clear(spi_oled0);
 
     switch (menu) {
         case MENU_MAIN :
             for (int row = 0; row < 2; row++) {
                 uint8_t idx = cursor + row;
 
-                set_cursor(spi_oled, row, 0);
-                print(spi_oled, main_menu[idx]);
+                set_cursor(spi_oled0, row, 0);
+                print(spi_oled0, main_menu[idx]);
             }
 
             // selection ">" indicator
             if (cursor == 0) {
-                set_cursor(spi_oled, 1, 0);
-                print(spi_oled, ">");
+                set_cursor(spi_oled0, 1, 0);
+                print(spi_oled0, ">");
             } else {
-                set_cursor(spi_oled, 0, 0);
-                print(spi_oled, ">");
+                set_cursor(spi_oled0, 0, 0);
+                print(spi_oled0, ">");
             }
 
             break;
         case MENU_VOLUME :
             for (int row = 0; row < 2; row++) {
                 uint8_t idx = cursor + row;
-                set_cursor(spi_oled, row, 0);
+                set_cursor(spi_oled0, row, 0);
                 if (idx == 0) {
                     char volume_str[STR_LEN];
                     snprintf(volume_str, STR_LEN, "Volume: %*d%%", 7, volume);
-                    print(spi_oled, volume_str);
+                    print(spi_oled0, volume_str);
                 }
             }
             break;
         case MENU_METADATA :
             for (int row = 0; row < 2; row++) {
                 uint8_t idx = cursor + row;
-                set_cursor(spi_oled, row, 0);
+                set_cursor(spi_oled0, row, 0);
 
                 if (idx == 0) {
-                    set_cursor(spi_oled, row, 0);
-                    print(spi_oled, current_artist);
+                    set_cursor(spi_oled0, row, 0);
+                    print(spi_oled0, current_artist);
                 } else if (idx == 1) {
-                    set_cursor(spi_oled, row, 0);
-                    print(spi_oled, current_album);
+                    set_cursor(spi_oled0, row, 0);
+                    print(spi_oled0, current_album);
                 } else if (idx == 2) {
-                    set_cursor(spi_oled, row, 0);
-                    print(spi_oled, current_track);
+                    set_cursor(spi_oled0, row, 0);
+                    print(spi_oled0, current_track);
                 } else if (idx == 3) {
-                    set_cursor(spi_oled, row, 0);
+                    set_cursor(spi_oled0, row, 0);
                     char runtime_str[STR_LEN];
                     snprintf(runtime_str, STR_LEN, "%02d:%02d", track_runtime_sec / 60, track_runtime_sec % 60);
-                    print(spi_oled, runtime_str);
+                    print(spi_oled0, runtime_str);
                 }
             }
             break;
         case MENU_EQ :
             for (int row = 0; row < 2; row++) {
                 uint8_t idx = cursor + row;
-                set_cursor(spi_oled, row, 0);
+                set_cursor(spi_oled0, row, 0);
                 
                 char eq_str[STR_LEN];
                 snprintf(eq_str, STR_LEN, "Band %d: %*d%%", idx, 7, equalizer_band[idx]);
-                print(spi_oled, eq_str);
+                print(spi_oled0, eq_str);
                 }
             break;
         case MENU_INPUT_SELECT :
             for (int row = 0; row < 2; row++) {
                 uint8_t idx = cursor + row;
-                set_cursor(spi_oled, row, 0);
+                set_cursor(spi_oled0, row, 0);
 
                 if (idx == 0) {
                     char bt_str[STR_LEN];
                     snprintf(bt_str, STR_LEN, "Bluetooth: %*s", 5, input_select ? "ON " : "OFF");
-                    print(spi_oled, bt_str);
+                    print(spi_oled0, bt_str);
                 } else if (idx == 1) {
                     char aux_str[STR_LEN];
                     snprintf(aux_str, STR_LEN, "AUX: %*s", 11, !input_select ? "ON " : "OFF");
-                    print(spi_oled, aux_str);
+                    print(spi_oled0, aux_str);
                 }
             }
             break;
         case MENU_PIVT :
             for (int row = 0; row < 2; row++) {
                 uint8_t idx = cursor + row;
-                set_cursor(spi_oled, row, 0);
+                set_cursor(spi_oled0, row, 0);
 
                 if (idx == 0) {
                     char pwr_str[STR_LEN];
                     snprintf(pwr_str, STR_LEN, "PWR: %.1fW", power);
-                    print(spi_oled, pwr_str);
+                    print(spi_oled0, pwr_str);
                 } else if (idx == 1) {
                     char tmp_str[STR_LEN];
                     snprintf(tmp_str, STR_LEN, "TMP: %.1fC", temperature);
-                    print(spi_oled, tmp_str);
+                    print(spi_oled0, tmp_str);
                 } else if (idx == 2) {
                     char vdc_str[STR_LEN];
                     snprintf(vdc_str, STR_LEN, "VDC: %.1fV", voltage);
-                    print(spi_oled, vdc_str);
+                    print(spi_oled0, vdc_str);
                 } else if (idx == 3) {
                     char idc_str[STR_LEN];
                     snprintf(idc_str, STR_LEN, "IDC: %.1fA", current);
-                    print(spi_oled, idc_str);
+                    print(spi_oled0, idc_str);
                 }
             }
             break;
         case MENU_RUNTIME :
             for (int row = 0; row < 2; row++) {
                 uint8_t idx = cursor + row;
-                set_cursor(spi_oled, row, 0);
+                set_cursor(spi_oled0, row, 0);
 
                 if (idx == 0) {
                     char runtime_str[STR_LEN];
                     int hours = runtime_total_sec / 3600;
                     int minutes = (runtime_total_sec % 3600) / 60;
                     snprintf(runtime_str, STR_LEN, "UP: %*d:%02d", 9, hours, minutes);
-                    print(spi_oled, runtime_str);
+                    print(spi_oled0, runtime_str);
                 } else if (idx == 1) {
                     char change_str[STR_LEN];
                     int nchours = next_change_sec / 3600;
                     int nminutes = (next_change_sec % 3600) / 60;
                     snprintf(change_str, STR_LEN, "CHNG: %*d:%02d", 7, nchours, nminutes);
-                    print(spi_oled, change_str);
+                    print(spi_oled0, change_str);
                 }
             }
             break;
