@@ -1,4 +1,4 @@
-void func(void);
+#pragma once
 
 #include "driver/spi_master.h"
 #include "driver/gpio.h"

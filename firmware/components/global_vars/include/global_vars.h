@@ -5,26 +5,22 @@
 #include "global_defs.h"
 
 // Global Variables
-bool power_status = ON;
+extern float voltage;
+extern float current;
+extern float power;
+extern float temperature;
 
-float voltage = 12.5;
-float current = 2.3;
-float power = 28.75;
-float temperature = 45.2;
+extern uint16_t volume;
 
-uint16_t volume = 67;
+extern uint16_t equalizer_band[EQ_BANDS];
 
-uint16_t equalizer_band[EQ_BANDS] = {
-    50, 50, 50, 50, 50, 50, 50, 50
-};
+extern bool input_select;
+extern bool display_power;
 
-bool bluetooth_status = ON;
-bool aux_status = OFF;
+extern char current_track[STR_LEN];
+extern char current_artist[STR_LEN];
+extern char current_album[STR_LEN];
+extern uint16_t track_runtime_sec;
 
-char current_track[STR_LEN] = "Song Title";
-char current_artist[STR_LEN] = "Artist Name";
-char current_album[STR_LEN] = "Album Name";
-uint16_t track_runtime_sec = 125;
-
-uint32_t runtime_total_sec = 3600;
-uint32_t next_change_sec = 3600000;
+extern uint32_t runtime_total_sec;
+extern uint32_t next_change_sec;

@@ -1,6 +1,4 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stdbool.h>
+#pragma once
 
 // Global Definitions and Constants
 #define ROTARY0_A 15
@@ -12,7 +10,7 @@
 #define ROTARY1_BUTTON 3
 
 #define SOURCE_SEL 13
-#define ON_OFF_SEL 14
+#define DISP_POWER 14
 
 #define SCLK_PIN 4
 #define MOSI_PIN 5

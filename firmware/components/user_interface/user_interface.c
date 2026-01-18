@@ -2,13 +2,12 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "global_defs.h"
 
 #define MAIN_MENU_ITEMS 7
 #define VOLUME_MENU_ITEMS 1
 #define METADATA_MENU_ITEMS 3
 #define EQ_MENU_ITEMS 7
-#define INPUT_SELECT_MENU_ITEMS 2
+#define INPUT_SELECT_MENU_ITEMS 1
 #define PIVT_MENU_ITEMS 4
 #define RUNTIME_MENU_ITEMS 2
 
@@ -32,6 +31,7 @@ static bool need_refresh = true;
 static menu_type_t current_menu = MENU_MAIN;
 static bool update_10x = false;
 static bool prev_input_select = BLUETOOTH;
+static bool prev_display_power = ON;
 
 typedef struct {
     spi_device_handle_t spi_oled;
@@ -70,9 +70,24 @@ void menu_task(void *pvParameters)
     free(args);   // free early; task owns the data now
 
     while (1) {
-        // check for source select change
-        
+        // if
+        if (display_power == OFF) {
+            clear(spi_oled);
+            prev_display_power = OFF;
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        } else {
+            if (prev_display_power == OFF) {
+                need_refresh = true;
+                prev_display_power = ON;
+            }
+        }
 
+        // check for source select change
+        if (input_select != prev_input_select) {
+            prev_input_select = input_select;
+            need_refresh = true;
+        }
 
         // check for button press to enable 10x adjustments
         if (check_rotary_button_pressed(encoder_control)) {
@@ -247,11 +262,11 @@ esp_err_t draw_menu(spi_device_handle_t spi_oled, uint8_t cursor, menu_type_t me
 
                 if (idx == 0) {
                     char bt_str[STR_LEN];
-                    snprintf(bt_str, STR_LEN, "Bluetooth: %*s", 5, bluetooth_status ? "ON " : "OFF");
+                    snprintf(bt_str, STR_LEN, "Bluetooth: %*s", 5, input_select ? "ON " : "OFF");
                     print(spi_oled, bt_str);
                 } else if (idx == 1) {
                     char aux_str[STR_LEN];
-                    snprintf(aux_str, STR_LEN, "AUX: %*s", 11, aux_status ? "ON " : "OFF");
+                    snprintf(aux_str, STR_LEN, "AUX: %*s", 11, !input_select ? "ON " : "OFF");
                     print(spi_oled, aux_str);
                 }
             }

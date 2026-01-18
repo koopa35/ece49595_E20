@@ -7,21 +7,7 @@
 #include "rotary_encoder.h"
 #include "1602A_OLED.h"
 #include "global_defs.h"
-
-extern float voltage;
-extern float current;
-extern float power;
-extern float temperature;
-extern uint16_t volume;
-extern uint16_t equalizer_band[EQ_BANDS];
-extern bool bluetooth_status;
-extern bool aux_status;
-extern char current_track[STR_LEN];
-extern char current_artist[STR_LEN];
-extern char current_album[STR_LEN];
-extern uint16_t track_runtime_sec;
-extern uint32_t runtime_total_sec;
-extern uint32_t next_change_sec;
+#include "global_vars.h"
 
 typedef enum {
     MENU_MAIN,

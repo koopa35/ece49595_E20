@@ -39,7 +39,8 @@ void app_main(void)
     freq(spi_oled1, spectrum, 16);
 
     while (1) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        input_select = (gpio_get_level(SOURCE_SEL)) ? AUX : BLUETOOTH;
+        display_power = (gpio_get_level(DISP_POWER)) ? OFF : ON;
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
-
 }
