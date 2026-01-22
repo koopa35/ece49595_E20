@@ -11,6 +11,8 @@
 	)
 	(lib_symbols)
 	(sheet
+		(at 25.4 25.4)
+		(size 25.4 25.4)
 		(at 19.685 20.955)
 		(size 15.875 14.605)
 		(exclude_from_sim no)
@@ -25,6 +27,9 @@
 		(fill
 			(color 0 0 0 0.0000)
 		)
+		(uuid "bf8de997-6f85-44a4-b04b-bcc07fd24856")
+		(property "Sheetname" "MCU Main"
+			(at 25.4 24.6884 0)
 		(uuid "8a2ee1ff-d669-4c2e-be3c-8a3853b93d40")
 		(property "Sheetname" "Switching Stage"
 			(at 19.685 20.2434 0)
@@ -35,6 +40,8 @@
 				(justify left bottom)
 			)
 		)
+		(property "Sheetfile" "mcu_main.kicad_sch"
+			(at 25.4 51.3846 0)
 		(property "Sheetfile" "switching.kicad_sch"
 			(at 19.685 36.1446 0)
 			(effects
