@@ -1,8 +1,0 @@
-# KiCad autosave / cache
-*.kicad_sch-bak
-*.kicad_pcb-bak
-*.bak
-*.tmp
-*.net
-*-cache.lib
-fp-info-cache
