@@ -78,9 +78,11 @@ void menu_task(void *pvParameters)
     while (1) {
         // Handle display power state
         if (display_power == OFF) {
-            clear(spi_oled0);
-            clear(spi_oled1);
-            prev_display_power = OFF;
+            if (prev_display_power == ON){
+                clear(spi_oled0);
+                clear(spi_oled1);
+                prev_display_power = OFF;
+            }
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         } else {
