@@ -1,7 +1,7 @@
 #include <stdio.h>
+#include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_log.h"
 #include "1602A_OLED.h"
 
 esp_err_t oled_init(spi_device_handle_t spi_oled)
@@ -133,7 +133,7 @@ esp_err_t home(spi_device_handle_t spi_oled)
 
 esp_err_t set_cursor(spi_device_handle_t spi_oled, uint8_t row, uint8_t col)
 {
-	command(spi_oled, OLED_SETDDRAMADDR | (row ? 0x40 : 0x00) | (col & 0x3F));
+    command(spi_oled, OLED_SETDDRAMADDR | (row ? 0x40 : 0x00) | (col & 0x3F));
     vTaskDelay(pdMS_TO_TICKS(20));
 
     return ESP_OK;
@@ -183,11 +183,11 @@ esp_err_t print(spi_device_handle_t spi_oled, const char *str)
 
 esp_err_t custom_char(spi_device_handle_t spi_oled, uint8_t location, uint8_t charmap[])
 {
-	location &= 0x7;
-	command(spi_oled, OLED_SETCGRAMADDR | (location << 3));
-	for (int i=0; i<8; i++) {
-		data(spi_oled, charmap[i]);
-	}
+    location &= 0x7;
+    command(spi_oled, OLED_SETCGRAMADDR | (location << 3));
+    for (int i = 0; i < 8; i++) {
+        data(spi_oled, charmap[i]);
+    }
 
     vTaskDelay(pdMS_TO_TICKS(2));
 
