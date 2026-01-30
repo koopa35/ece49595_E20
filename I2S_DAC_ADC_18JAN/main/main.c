@@ -8,14 +8,11 @@
 #include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "esp_adc/adc_continuous.h"
 #include "esp_dsp.h"
 #include "sdkconfig.h"
 //---------------------
-#include "adc.h"
 #include "1602A_OLED.h"
 #include "main.h"
-#include "sdm.h"
 #include "filters.h"
 #include "i2s.h"
 
@@ -51,10 +48,7 @@ __attribute__((aligned(16))) float window[BUF_SIZE];
 __attribute__((aligned(16))) float spectrum[2 * BUF_SIZE];
 __attribute__((aligned(16))) float spec_binned[NUM_BINS];
 
-adc_continuous_handle_t adc_handle = NULL;
-adc_channel_t ADC_CHANNEL = ADC_CHANNEL_0;
 spi_device_handle_t spi_oled;
-sdm_channel_handle_t sdm_chan;
 static i2s_chan_handle_t  tx_chan;        // I2S tx channel handler
 static i2s_chan_handle_t  rx_chan;        // I2S rx channel handler
 
@@ -73,23 +67,26 @@ static void i2s_example_write_task(void *args)
 {
     ESP_ERROR_CHECK(i2s_channel_enable(tx_chan));
 
-    int16_t i2s_buf[BUF_SIZE *2];
+    static int32_t i2s_buf[BUF_SIZE *2];
     int buf_idx = 0;
     size_t bytes_written = 0;
 
     while (1) {
         if (xQueueReceive(output_queue, &buf_idx, portMAX_DELAY) == pdPASS)
         {
+            int32_t out_sum = 0;
             int16_t* data_out = buffer_pool[buf_idx].data;
             for (int i = 0; i < (BUF_SIZE); i++)
             {
-                int16_t sample = 20*(data_out[i]);
-                i2s_buf[2*i]     = sample; // Left
-                i2s_buf[2*i + 1] = sample; // Right
+                int32_t sample = (int32_t)data_out[i] * 10;
+                out_sum += sample;
+                int32_t s32 = sample << 16;
+                i2s_buf[2*i]     = s32; // Left
+                i2s_buf[2*i + 1] = s32; // Right
             }
 
                 /* Write i2s data */
-            if (i2s_channel_write(tx_chan, i2s_buf, BUF_SIZE*2*sizeof(int16_t), &bytes_written, portMAX_DELAY) != ESP_OK) 
+            if (i2s_channel_write(tx_chan, i2s_buf, BUF_SIZE*2*sizeof(int32_t), &bytes_written, portMAX_DELAY) != ESP_OK) 
             {
                 printf("Write Task: i2s write failed\n");
             }
@@ -97,13 +94,13 @@ static void i2s_example_write_task(void *args)
     }
     vTaskDelete(NULL);
 }
-
+/* old adc
 static bool IRAM_ATTR s_conv_done_cb(adc_continuous_handle_t handle, const adc_continuous_evt_data_t* edata, void* user_data)
 {
     BaseType_t mustYield = pdFALSE;
     vTaskNotifyGiveFromISR(sampling_task_handle, &mustYield);
     return (mustYield == pdTRUE);
-}
+}*/
 
 static void init_double_buffer(void)
 {
@@ -165,7 +162,7 @@ void app_main(void)
     //----------OLED INITIALIZATION-------
     vTaskDelay(pdMS_TO_TICKS(100));
     spi_init(&spi_oled);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(1000));
     oled_init(spi_oled);
     vTaskDelay(pdMS_TO_TICKS(1000));
     clear(spi_oled);
@@ -196,65 +193,54 @@ void app_main(void)
     }
        
     //----------TASK CREATION-------------------------------- 
-#ifdef CONFIG_INPUT_SOURCE_AUX
-    xTaskCreate(task_adc_sample, "ADC Sampling", 4096, NULL, 3, &sampling_task_handle);
-#endif
     xTaskCreate(task_dsp, "DSP", 16384, NULL, 6, &processing_task_handle);
 
-#ifdef CONFIG_INPUT_SOURCE_AUX
-    //--------- INIT ADC & CALLBACK ------------------------------
-    init_cont_adc(ADC_CHANNEL, 1, &adc_handle); // initialize adc
-    
-    adc_continuous_evt_cbs_t cbs = {
-        .on_conv_done = s_conv_done_cb,
-    };
-
-    ESP_ERROR_CHECK(adc_continuous_register_event_callbacks(adc_handle, &cbs, NULL)); // register callback when conv frame is full
-                                                                                     
-    ESP_ERROR_CHECK(adc_continuous_start(adc_handle));
-    ESP_LOGI(TAG, "Succesfully Started ADC in Continuous Mode");
-#endif
     //------------------I2S INITIALIZATION--------------------
-    i2s_example_init_std_duplex(&tx_chan, &rx_chan); 
-    //xTaskCreate(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 5, NULL); //uncomment for ADC
+    i2s_example_init_std_simplex(&tx_chan, &rx_chan); 
+    xTaskCreate(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 5, NULL); //uncomment for ADC
     xTaskCreate(i2s_example_write_task, "i2s_example_write_task", 4096, NULL, 5, NULL);
     ESP_LOGI(TAG, "I2S SUCCESFULLY INITIALIZED");
-#ifdef CONFIG_INPUT_SOURCE
-    ESP_ERROR_CHECK(adc_continuous_stop(adc_handle));
-    ESP_ERROR_CHECK(adc_continuous_deinit(adc_handle));
-#endif
 }
 
-void task_adc_sample(void *pvParameters)
+void i2s_example_read_task(void *pvParameters)
 {
-    uint8_t result[BUF_SIZE*sizeof(adc_digi_output_data_t)];
-    uint32_t bytes_read = 0;
+    static int32_t raw_rx_buf[2* BUF_SIZE];
+    size_t bytes_read = 0;
     DataBlock block;
 
+    ESP_ERROR_CHECK(i2s_channel_enable(rx_chan));
+
     while(true) {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        esp_err_t ret = adc_continuous_read(adc_handle,result, sizeof(result), &bytes_read, portMAX_DELAY);
-        if (ret == ESP_OK)
+        if (i2s_channel_read(rx_chan, raw_rx_buf, BUF_SIZE * 2 * sizeof(int32_t), &bytes_read, portMAX_DELAY) == ESP_OK)
         {
-            block.length = bytes_read / sizeof(adc_digi_output_data_t);
-            //convert raw values to voltage
-            int buf_sum = 0;
-            for (int i = 0; i < bytes_read / sizeof(adc_digi_output_data_t); i++)
+            int samples_read = bytes_read / sizeof(int32_t); // = BUF_SIZE * 2
+            block.length = samples_read / 2; // only take left channel
+            int block_idx = 0;
+            int sum = 0;
+
+            for (int i = 0; i < samples_read; i+=2) // only taking from left channel with  i+= 2
             {
-                adc_digi_output_data_t *p = (adc_digi_output_data_t *)&result[i*sizeof(adc_digi_output_data_t)]; 
-                uint32_t raw = p->type2.data;
-                block.data[i]  = (int16_t)raw; 
-                buf_sum += block.data[i];
+                block.data[block_idx]  = (int16_t)(raw_rx_buf[i] >> 16); //(int16_t)(((raw_rx_buf[i]  + raw_rx_buf[i+1])/2)>> 16);
+                sum += block.data[block_idx];
+                block_idx++;
+
+                if (block_idx >= BUF_SIZE) 
+                {
+                    break;
+                }
             }
 
-            running_buf_avg = buf_sum / BUF_SIZE;
             // send buffer to process
+            running_buf_avg = sum / BUF_SIZE;
             if(xQueueSend(process_queue, &block, portMAX_DELAY) != pdPASS)
             {
                 ESP_LOGE(TAG, "PROCESS QUEUE FULL -- DSP TOO SLOW");
             }
         }
     }
+
+    free(raw_rx_buf);
+    vTaskDelete(NULL);
 } 
 
 void task_dsp(void *pvParameters)
@@ -282,7 +268,7 @@ void task_dsp(void *pvParameters)
             // convert adc ints to floats for filtering
             for (int i = 0; i < BUF_SIZE; i++)
             {
-                fir_in[i] = (float) (dsp_current_buffer[i] - running_buf_avg);
+                fir_in[i] = (float)dsp_current_buffer[i];
             }
 
             apply_EQ(BUF_SIZE, NUM_BANDS, fir_out, eq_gains, fir_handles); // FILTERING 
@@ -290,8 +276,8 @@ void task_dsp(void *pvParameters)
             //filling filtered signals out to output & spectrum
             for (int i = 0; i < BUF_SIZE; i++)
             {
-                dsp_current_buffer[i] = (int16_t) fir_out[i];
-                spectrum_buffer[i] = (int16_t) fir_out[i];
+                dsp_current_buffer[i] = (int16_t) (fir_in[i]); 
+                spectrum_buffer[i] = (int16_t) (fir_out[i]);
             }
 
             if (xQueueSend(output_queue, &buf_idx, portMAX_DELAY) == pdPASS)
@@ -373,7 +359,6 @@ void task_oled(void *pvParameters)
         {
             memcpy(spec_binned, latest_spectrum, sizeof(spec_binned));
             xSemaphoreGive(spectrum_mutex);
-            //ESP_LOGI(TAG, "pushing to oled");
             print_to_OLED(NUM_BINS, spec_binned);
         }
     }
@@ -381,9 +366,10 @@ void task_oled(void *pvParameters)
 
 void print_to_OLED(int num_bins, float* spectrum_binned)
 {
-    float max = -10.0;
-    float min = -45.0;
+    float max = 30.0;
+    float min = -30.0;
     uint8_t spectrum[NUM_BINS];
+    ESP_LOGI("bin_test", "%f %f %f %f", spectrum_binned[0], spectrum_binned[2], spectrum_binned[4], spectrum_binned[6]);
     
     for (int i = 0; i < NUM_BINS; i++)
     {
