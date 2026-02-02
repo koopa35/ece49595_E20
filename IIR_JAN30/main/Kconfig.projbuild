@@ -1,0 +1,46 @@
+# put here your custom config value
+menu "Plasma Configuration"
+
+choice INPUT_SOURCE
+    prompt "Select Audio Input Source"
+    default INPUT_SOURCE_AUX 
+
+    config INPUT_SOURCE_WIRELESS
+        bool "Wireless Input"
+    
+    config INPUT_SOURCE_AUX
+        bool "Wired Input"
+        
+endchoice
+
+config ESP_WIFI_SSID
+    depends on INPUT_SOURCE_WIRELESS
+    string "WiFi SSID"
+    default "myssid"
+    help
+	SSID (network name) for the example to connect to.
+
+config ESP_WIFI_PASSWORD
+    depends on INPUT_SOURCE_WIRELESS
+    string "WiFi Password"
+    default "mypassword"
+    help
+	WiFi password
+
+config SAMPLE_RATE
+    depends on INPUT_SOURCE_AUX
+    int "Sample Rate"
+    default 44100 
+
+choice OUTPUT_MODE
+    prompt "Select Output Mode"
+    config OUTPUT_MODE_PDM
+        bool "PDM"
+    config OUTPUT_MODE_PASSTHROUGH
+        bool "Audio Pass Through"
+endchoice
+
+config USER_BUFFER_SIZE
+    int "Enter Buffer Size"
+    default 256
+endmenu
