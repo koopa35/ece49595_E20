@@ -35,4 +35,4 @@ esp_err_t runtime_log_maybe_save(runtime_log_t *h);
 
 // Starts a FreeRTOS task that prints runtime  and saves periodically.
 
-esp_err_t runtime_log_start_task(runtime_log_t *h, uint32_t stack_words, UBaseType_t priority);
+esp_err_t runtime_log_start_task(runtime_log_t *h, uint32_t stack_bytes, UBaseType_t priority);

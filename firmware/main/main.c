@@ -1,4 +1,3 @@
-
 #include <stdint.h>
 
 #include "freertos/FreeRTOS.h"
@@ -15,7 +14,7 @@
 #define I2C_PORT      I2C_NUM_0
 #define I2C_SDA_GPIO  21
 #define I2C_SCL_GPIO  22
-#define I2C_FREQ_HZ   100000   // sped back up to 100k I2c standard 
+#define I2C_FREQ_HZ   100000   // 100 kHz standard mode
 
 #define EEPROM_ADDR_7BIT      0x57
 #define EEPROM_SIZE_BYTES     4096
@@ -23,14 +22,16 @@
 
 #define SAVE_INTERVAL_MINUTES 1
 
-#define RUNTIME_TASK_STACK_WORDS 1024 //4KB at 1024, but can be 4096 max
-#define RUNTIME_TASK_PRIORITY 5
+// FreeRTOS stack parameter to xTaskCreate is in WORDS (not bytes).
+// On ESP32, a word is 4 bytes. 1024 words = 4096 bytes.
+#define RUNTIME_TASK_STACK_WORDS 4096
+#define RUNTIME_TASK_PRIORITY    5
 
-static const char *TAG = "RUNTIME_LOG";
+static const char *TAG = "MAIN";
 
 // ================== HANDLES ==================
-static eeprom_24xx_t eeprom0;
-static runtime_log_t runtime0;
+static eeprom_24xx_t  eeprom0;
+static runtime_log_t  runtime0;
 
 // ================== INIT FUNCTIONS ==================
 static void i2c_init(void)
@@ -80,7 +81,5 @@ void app_main(void)
     eeprom_init();
     runtime_init();
 
-    ESP_ERROR_CHECK(
-    runtime_log_start_task(&runtime0, RUNTIME_TASK_STACK_WORDS, RUNTIME_TASK_PRIORITY)
-);
+    ESP_ERROR_CHECK(runtime_log_start_task(&runtime0, RUNTIME_TASK_STACK_WORDS, RUNTIME_TASK_PRIORITY));
 }

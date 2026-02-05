@@ -20,6 +20,9 @@ typedef struct __attribute__((packed)) {
 
 #define REC_MAGIC 0xA5C3F00Du
 #define REC_SIZE  ((uint16_t)sizeof(runtime_record_t))
+#define RUNTIME_TASK_STACK_WORDS 4096   // 4096 words = 16 KB 
+#define RUNTIME_TASK_PRIORITY    5
+
 
 static const char *TAG = "RUNTIME_LOG";
 
@@ -207,12 +210,25 @@ static void runtime_task(void *arg)
 
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
+
 }
 
 esp_err_t runtime_log_start_task(runtime_log_t *h, uint32_t stack_words, UBaseType_t priority)
 {
     if (!h || stack_words == 0) return ESP_ERR_INVALID_ARG;
 
-    BaseType_t ok = xTaskCreate(runtime_task, "runtime_task", stack_words, h, priority, NULL);
+    // Pin to CPU0 to avoid early Core1 scheduling issues while debugging
+    BaseType_t ok = xTaskCreatePinnedToCore(
+        runtime_task,
+        "runtime_task",
+        stack_words,   // stack depth in WORDS
+        h,
+        priority,
+        NULL,
+        0              // core 0
+    );
+
     return (ok == pdPASS) ? ESP_OK : ESP_ERR_NO_MEM;
 }
+
+
