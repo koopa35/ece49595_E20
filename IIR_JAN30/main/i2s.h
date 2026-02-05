@@ -7,6 +7,8 @@
 void i2s_example_init_std_duplex(i2s_chan_handle_t* a_tx_chan, i2s_chan_handle_t* a_rx_chan);
 void i2s_example_init_std_simplex(i2s_chan_handle_t* a_tx_chan, i2s_chan_handle_t* a_rx_chan);
 
+void i2s_init_bluetooth(i2s_chan_handle_t* a_rx_chan);
+
 #endif // I2S_H
 
 

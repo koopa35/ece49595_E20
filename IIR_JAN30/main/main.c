@@ -21,7 +21,6 @@
 #endif
 
 #define NUM_BANDS 8
-#define FIR_COEFFS_LEN 64
 
 float eq_gains[NUM_BANDS] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 float band_edges[NUM_BANDS + 1] = {0, 350.0, 1100.0, 2200.0, 4000.0, 6000.0, 8000.0, 10500.0, SAMPLE_RATE/2};
@@ -31,13 +30,6 @@ float q_factors[NUM_BANDS] = {0.7, 0.85, 1.41, 1.6, 2.4, 3.4, 3.6, 0.7};
 float iir_coeffs[NUM_BANDS][5];
 float iir_delay[NUM_BANDS][2];
 
-fir_f32_t fir_handles[NUM_BANDS];
-const int32_t fir_len = FIR_COEFFS_LEN;
-const int32_t fir_decim = 1;
-
-static __attribute__((aligned(16))) float fir_coeffs[NUM_BANDS][FIR_COEFFS_LEN];
-
-static __attribute__((aligned(16))) float delay_line[FIR_COEFFS_LEN];
 static __attribute__((aligned(16))) float iir_out[BUF_SIZE];
 static __attribute__((aligned(16))) float iir_in[BUF_SIZE];
 
@@ -54,12 +46,12 @@ __attribute__((aligned(16))) float spec_binned[NUM_BINS];
 
 spi_device_handle_t spi_oled;
 static i2s_chan_handle_t  tx_chan;        // I2S tx channel handler
-static i2s_chan_handle_t  rx_chan;        // I2S rx channel handler
+static i2s_chan_handle_t  rx_chan_adc;        // I2S rx channel handler for adc
+static i2s_chan_handle_t  rx_chan_bt;        // I2S rx channel handler for bluetooth
 
 static float latest_spectrum[NUM_BINS];
 static SemaphoreHandle_t spectrum_mutex = NULL;
 
-TaskHandle_t audio_decoding_task_handle = NULL;
 TaskHandle_t sampling_task_handle = NULL;
 TaskHandle_t processing_task_handle = NULL;
 TaskHandle_t output_task_handle = NULL;
@@ -200,7 +192,8 @@ void app_main(void)
     xTaskCreate(task_dsp, "DSP", 16384, NULL, 6, &processing_task_handle);
 
     //------------------I2S INITIALIZATION--------------------
-    i2s_example_init_std_simplex(&tx_chan, &rx_chan); 
+    i2s_example_init_std_simplex(&tx_chan, &rx_chan_adc); 
+    i2s_init_bluetooth(&rx_chan_bt); 
     xTaskCreate(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 5, NULL); //uncomment for ADC
     xTaskCreate(i2s_example_write_task, "i2s_example_write_task", 4096, NULL, 5, NULL);
     ESP_LOGI(TAG, "I2S SUCCESFULLY INITIALIZED");
@@ -212,10 +205,11 @@ void i2s_example_read_task(void *pvParameters)
     size_t bytes_read = 0;
     DataBlock block;
 
-    ESP_ERROR_CHECK(i2s_channel_enable(rx_chan));
+    ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_adc));
+    ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_bt));
 
     while(true) {
-        if (i2s_channel_read(rx_chan, raw_rx_buf, BUF_SIZE * 2 * sizeof(int32_t), &bytes_read, portMAX_DELAY) == ESP_OK)
+        if (i2s_channel_read(rx_chan_adc, raw_rx_buf, BUF_SIZE * 2 * sizeof(int32_t), &bytes_read, portMAX_DELAY) == ESP_OK)
         {
             int samples_read = bytes_read / sizeof(int32_t); // = BUF_SIZE * 2
             block.length = samples_read / 2; // only take left channel
