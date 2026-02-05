@@ -93,7 +93,34 @@ void menu_task(void *pvParameters)
         }
 
         // draw frequency spectrum on second display
-        freq(spi_oled1, spectrum, 16);
+        if (current_menu == MENU_EQ) {
+            uint8_t temp[16] = {
+                equalizer_band[0] / 12,
+                0,
+                equalizer_band[1] / 12,
+                0,
+                equalizer_band[2] / 12,
+                0,
+                equalizer_band[3] / 12,
+                0,
+                equalizer_band[4] / 12,
+                0,
+                equalizer_band[5] / 12,
+                0,
+                equalizer_band[6] / 12,
+                0,
+                equalizer_band[7] / 12,
+                0
+            };
+                
+            freq(spi_oled1, temp, 16);
+            set_cursor(spi_oled1, 0, 0);
+            print(spi_oled1, "--- EQ Bands ---");
+        } else {
+            set_cursor(spi_oled1, 0, 0);
+            print(spi_oled1, "--- Spectrum ---");
+            freq(spi_oled1, spectrum, 16);
+        }
 
         // check for source select change
         if (input_select != prev_input_select) {
@@ -105,11 +132,19 @@ void menu_task(void *pvParameters)
 
         // check for button press to enable 10x adjustments
         if (check_rotary_button_pressed(encoder_control)) {
-            update_10x = !update_10x;
+            if (check_rotary_button_pressed(encoder_menu)) {
+                // both buttons pressed: reset EQ to default values
+                for (int i = 0; i < EQ_BANDS; i++) {
+                    equalizer_band[i] = 50;
+                }
+                need_refresh = true;         
+            } else {
+                update_10x = !update_10x;
+            }
         }
 
         // check for button press to enter/exit sub-menus
-        if (check_rotary_button_pressed(encoder_menu)) {
+        if (check_rotary_button_pressed(encoder_menu) && !check_rotary_button_pressed(encoder_menu)) {
             if (!in_sub_menu) {
                 switch (cursor) {
                     case 0:

@@ -20,5 +20,5 @@ typedef enum {
 } menu_type_t;
 
 esp_err_t draw_menu(spi_device_handle_t spi_oled, uint8_t cursor, menu_type_t menu);
-esp_err_t start_menu_task(spi_device_handle_t spi_oled0, spi_device_handle_t spi_oled1, uint8_t spectrum[16], rotary_config_t *encoder_menu, rotary_config_t *encoder_control);
+esp_err_t start_menu_task(spi_device_handle_t spi_oled1, spi_device_handle_t spi_oled2, uint8_t spectrum[16], rotary_config_t *encoder_menu, rotary_config_t *encoder_control);
 void menu_task(void *pvParameters);

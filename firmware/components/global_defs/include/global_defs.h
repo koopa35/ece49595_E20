@@ -1,22 +1,38 @@
 #pragma once
+#include <stddef.h>
 
-// Global Definitions and Constants
-#define ROTARY0_A 15
-#define ROTARY0_B 16
-#define ROTARY0_BUTTON 17
+// Rotary Encoder Pins
+#define ENC1_A 15
+#define ENC1_B 16
+#define ENC1_BTN 17
 
-#define ROTARY1_A 18
-#define ROTARY1_B 8
-#define ROTARY1_BUTTON 3
+#define ENC2_A 18
+#define ENC2_B 8
+#define ENC2_BTN 3
 
+// Switch pins
 #define SOURCE_SEL 13
 #define DISP_POWER 14
 
-#define SCLK_PIN 4
-#define MOSI_PIN 5
-#define CS_OLED0_PIN 6
-#define CS_OLED1_PIN 7
+// SPI Pins
+#define SCLK 4
+#define MOSI 5
+#define CS1 6
+#define CS2 7
 
+// I2C PINS
+#define I2C_PORT     I2C_NUM_0
+#define I2C_SDA_GPIO 42
+#define I2C_SCL_GPIO 41
+#define I2C_FREQ_HZ  10000
+
+// EEPROM Definitions
+#define EEPROM_ADDR  0x57
+#define EEPROM_SIZE_BYTES 4096
+#define EEPROM_MAX_ADDR   (EEPROM_SIZE_BYTES - 1)
+#define EEPROM_PAGE_SIZE  32
+
+// States
 #define BLUETOOTH 1
 #define AUX 0
 
@@ -26,3 +42,33 @@
 #define EQ_BANDS 8
 
 #define STR_LEN 20
+
+// DSP definitions
+#define BUF_SIZE    256
+#define NUM_BINS    16 
+#define SAMPLE_RATE 44100
+
+#define I2S_DUPLEX_MCLK 21
+#define I2S_DUPLEX_BCLK 38
+#define I2S_DUPLEX_WS   39
+#define I2S_DUPLEX_DOUT 40
+#define I2S_DUPLEX_DIN  37
+
+#define I2S_SIMPLEX_BCLK 41
+#define I2S_SIMPLEX_WS   42
+#define I2S_SIMPLEX_DIN  45
+
+typedef struct {
+    int16_t data[BUF_SIZE];
+    size_t length;
+} DataBlock;
+
+void fft(int, int16_t*, float*, float);
+void spec2bins(int N, int N_bins, float* spectrum, float* spectrum_binned);
+void task_dsp(void*);
+void i2s_example_read_task(void*);
+void print_to_OLED(int, float*);
+void plot_spec_to_lcd(int N_bins, float* spectrum);
+void task_output(void* pvParameters);
+void task_audio_decode(void *args);
+void task_oled(void *args);

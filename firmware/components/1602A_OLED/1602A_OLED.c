@@ -212,6 +212,6 @@ esp_err_t freq(spi_device_handle_t spi_oled, uint8_t *spectrum, size_t len)
 
     set_cursor(spi_oled, 1, 0);
     print(spi_oled, line);
-
+    
     return ESP_OK;
 }
