@@ -194,7 +194,7 @@ void app_main(void)
     //------------------I2S INITIALIZATION--------------------
     i2s_example_init_std_simplex(&tx_chan, &rx_chan_adc); 
     i2s_init_bluetooth(&rx_chan_bt); 
-    xTaskCreate(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 5, NULL); //uncomment for ADC
+    xTaskCreate(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 5, NULL); 
     xTaskCreate(i2s_example_write_task, "i2s_example_write_task", 4096, NULL, 5, NULL);
     ESP_LOGI(TAG, "I2S SUCCESFULLY INITIALIZED");
 }
