@@ -62,13 +62,3 @@ typedef struct {
     int16_t data[BUF_SIZE];
     size_t length;
 } DataBlock;
-
-void fft(int, int16_t*, float*, float);
-void spec2bins(int N, int N_bins, float* spectrum, float* spectrum_binned);
-void task_dsp(void*);
-void i2s_example_read_task(void*);
-void print_to_OLED(int, float*);
-void plot_spec_to_lcd(int N_bins, float* spectrum);
-void task_output(void* pvParameters);
-void task_audio_decode(void *args);
-void task_oled(void *args);
