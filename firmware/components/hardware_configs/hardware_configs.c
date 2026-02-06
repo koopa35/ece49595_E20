@@ -46,7 +46,7 @@ spi_device_interface_config_t devcfg1 = {
 
 spi_device_interface_config_t devcfg2 = {
         .mode = 3,
-        .clock_speed_hz = 1000000,
+        .clock_speed_hz = 2000000,
         .spics_io_num = CS2,
         .queue_size = 16,
         .flags = SPI_DEVICE_HALFDUPLEX

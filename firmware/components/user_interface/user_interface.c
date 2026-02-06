@@ -36,12 +36,11 @@ static bool prev_display_power = ON;
 typedef struct {
     spi_device_handle_t spi_oled1;
     spi_device_handle_t spi_oled2;
-    uint8_t *spectrum;
     rotary_config_t *encoder_menu;
     rotary_config_t *encoder_control;
 } menu_task_args_t;
 
-esp_err_t start_menu_task(spi_device_handle_t spi_oled1, spi_device_handle_t spi_oled2, uint8_t spectrum[16], rotary_config_t *encoder_menu, rotary_config_t *encoder_control)
+esp_err_t start_menu_task(spi_device_handle_t spi_oled1, spi_device_handle_t spi_oled2, rotary_config_t *encoder_menu, rotary_config_t *encoder_control)
 {
     menu_task_args_t *args = malloc(sizeof(menu_task_args_t));
     if (args == NULL) {
@@ -50,7 +49,6 @@ esp_err_t start_menu_task(spi_device_handle_t spi_oled1, spi_device_handle_t spi
 
     args->spi_oled1 = spi_oled1;
     args->spi_oled2 = spi_oled2;
-    args->spectrum = spectrum;
     args->encoder_menu = encoder_menu;
     args->encoder_control = encoder_control;
 
@@ -69,7 +67,6 @@ void menu_task(void *pvParameters)
 
     spi_device_handle_t spi_oled1 = args->spi_oled1;
     spi_device_handle_t spi_oled2 = args->spi_oled2;
-    uint8_t *spectrum = args->spectrum;
     rotary_config_t *encoder_menu = args->encoder_menu;
     rotary_config_t *encoder_control = args->encoder_control;
 
@@ -119,7 +116,7 @@ void menu_task(void *pvParameters)
         } else {
             set_cursor(spi_oled2, 0, 0);
             print(spi_oled2, "--- Spectrum ---");
-            freq(spi_oled2, spectrum, 16);
+            freq(spi_oled2, spectrum_norm, 16);
         }
 
         // check for source select change

@@ -320,7 +320,10 @@ esp_err_t dsp_init(void)
     ESP_LOGI(TAG, "Successfully Created Output Queue");
 
     //----------TASK CREATION-------------------------------- 
-    xTaskCreatePinnedToCore(task_dsp, "DSP", 16384, NULL, 6, &processing_task_handle, 1);
+    xTaskCreatePinnedToCore(task_dsp, "DSP", 24576, NULL, 6, &processing_task_handle, 1);
+
+    //----------OLED SPECTRUM UPDATE TASK--------------------
+    xTaskCreatePinnedToCore(task_oled, "task_oled", 4096, NULL, 5, NULL, 0);
 
     //------------------I2S INITIALIZATION--------------------
     i2s_example_init_std_duplex(&tx_chan, &rx_chan_adc); 
@@ -329,13 +332,4 @@ esp_err_t dsp_init(void)
     ESP_LOGI(TAG, "I2S SUCCESSFULLY INITIALIZED");
 
     return ESP_OK;
-}
-
-void dsp_app_main_loop(void)
-{
-    while (1) {
-        input_select = (gpio_get_level(SOURCE_SEL)) ? AUX : BLUETOOTH;
-        display_power = (gpio_get_level(DISP_POWER)) ? OFF : ON;
-        vTaskDelay(pdMS_TO_TICKS(100));
-    }
 }

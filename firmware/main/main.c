@@ -23,6 +23,7 @@
 //----------APPLICATION ENTRY POINT----------
 void app_main(void)
 {
+
     //----------HARDWARE INITIALIZATION----------
     vTaskDelay(pdMS_TO_TICKS(100));
     ESP_ERROR_CHECK(gpio_config(&io_conf));
@@ -33,6 +34,10 @@ void app_main(void)
     ESP_ERROR_CHECK(oled_init(spi_oled1));
     ESP_ERROR_CHECK(oled_init(spi_oled2));
     vTaskDelay(pdMS_TO_TICKS(200));
+
+    set_cursor(spi_oled1, 0, 0);
+    print(spi_oled1, "Initializing...");
+    vTaskDelay(pdMS_TO_TICKS(1000));
     
     //----------ROTARY ENCODER INITIALIZATION----------
     ESP_ERROR_CHECK(rotary_init(&enc1));
@@ -40,11 +45,16 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(100));
 
     //----------USER INTERFACE INITIALIZATION----------
-    ESP_ERROR_CHECK(start_menu_task(spi_oled1, spi_oled2, spectrum_norm, &enc1, &enc2));
+    ESP_ERROR_CHECK(start_menu_task(spi_oled1, spi_oled2, &enc1, &enc2));
 
     //----------DSP SYSTEM INITIALIZATION----------
     ESP_ERROR_CHECK(dsp_init());
 
     //----------MAIN CONTROL LOOP----------
-    dsp_app_main_loop();
+    while (1) {
+        input_select = (gpio_get_level(SOURCE_SEL)) ? AUX : BLUETOOTH;
+        display_power = (gpio_get_level(DISP_POWER)) ? OFF : ON;
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    
 } 

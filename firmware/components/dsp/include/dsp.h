@@ -6,7 +6,6 @@
 
 
 esp_err_t dsp_init(void);
-void dsp_app_main_loop(void);
 void i2s_example_read_task(void *pvParameters);
 void i2s_example_write_task(void *args);
 void task_dsp(void *pvParameters);
