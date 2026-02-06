@@ -47,22 +47,22 @@ static void i2s_example_write_task(void *args)
     while (1) {
         if (xQueueReceive(output_queue, &buf_idx, portMAX_DELAY) == pdPASS)
         {
-            // int32_t out_sum = 0;
-            // int16_t* data_out = buffer_pool[buf_idx].data;
-            // for (int i = 0; i < (BUF_SIZE); i++)
-            // {
-            //     // int32_t sample = (int32_t)data_out[i] * 5;
-            //     out_sum += sample;
-            //     int32_t s32 = sample << 16;
-            //     i2s_buf[2*i]     = s32; // Left
-            //     i2s_buf[2*i + 1] = s32; // Right
-            // }
+            int32_t out_sum = 0;
+            int16_t* data_out = buffer_pool[buf_idx].data;
+            for (int i = 0; i < (BUF_SIZE); i++)
+            {
+                int32_t sample = (int32_t)data_out[i] * 5;
+                out_sum += sample;
+                int32_t s32 = sample << 16;
+                i2s_buf[2*i]     = s32; // Left
+                i2s_buf[2*i + 1] = s32; // Right
+            }
 
             /* Write i2s data */
-            // if (i2s_channel_write(tx_chan, i2s_buf, BUF_SIZE*2*sizeof(int32_t), &bytes_written, portMAX_DELAY) != ESP_OK) 
-            // {
-            //     printf("Write Task: i2s write failed\n");
-            // }
+            if (i2s_channel_write(tx_chan, i2s_buf, BUF_SIZE*2*sizeof(int32_t), &bytes_written, portMAX_DELAY) != ESP_OK) 
+            {
+                printf("Write Task: i2s write failed\n");
+            }
         }
     }
     vTaskDelete(NULL);
@@ -173,13 +173,13 @@ void app_main(void)
     }
 
     //----------TASK CREATION-------------------------------- 
-    xTaskCreate(task_dsp, "DSP", 16384, NULL, 6, &processing_task_handle);
+    xTaskCreatePinnedToCore(task_dsp, "DSP", 16384, NULL, 6, &processing_task_handle, 1);
 
     //------------------I2S INITIALIZATION--------------------
     i2s_example_init_std_duplex(&tx_chan, &rx_chan_adc); 
     // i2s_init_bluetooth(&rx_chan_bt); 
-    xTaskCreate(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 5, NULL); 
-    xTaskCreate(i2s_example_write_task, "i2s_example_write_task", 4096, NULL, 5, NULL);
+    xTaskCreatePinnedToCore(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 5, NULL, 0); 
+    xTaskCreatePinnedToCore(i2s_example_write_task, "i2s_example_write_task", 4096, NULL, 5, NULL, 0);
     ESP_LOGI(TAG, "I2S SUCCESFULLY INITIALIZED");
 
     while (1) {
