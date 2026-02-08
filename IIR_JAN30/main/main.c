@@ -13,7 +13,6 @@
 //---------------------
 #include "1602A_OLED.h"
 #include "main.h"
-#include "filters.h"
 #include "i2s.h"
 
 #if CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ == 160
@@ -38,7 +37,7 @@ int32_t running_buf_avg = 0;
 
 static QueueHandle_t process_queue = NULL;
 static QueueHandle_t output_queue = NULL;
-static QueueHandle_t oled_queue = NULL;
+static QueueHandle_t free_queue = NULL;
 
 __attribute__((aligned(16))) float window[BUF_SIZE];
 __attribute__((aligned(16))) float spectrum[2 * BUF_SIZE];
@@ -84,8 +83,10 @@ static void i2s_example_write_task(void *args)
                 /* Write i2s data */
             if (i2s_channel_write(tx_chan, i2s_buf, BUF_SIZE*2*sizeof(int32_t), &bytes_written, portMAX_DELAY) != ESP_OK) 
             {
-                printf("Write Task: i2s write failed\n");
+                ESP_LOGI("I2S OUTPUT", "Write Task: i2s write failed\n");
             }
+            
+            xQueueSend(free_queue, &buf_idx, portMAX_DELAY);
         }
     }
     vTaskDelete(NULL);
@@ -165,7 +166,7 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(1000));
     freq(spi_oled, freq_test, 8);
     vTaskDelay(pdMS_TO_TICKS(1000));
-    oled_queue = xQueueCreate(2, sizeof(float) * NUM_BINS);
+    //oled_queue = xQueueCreate(2, sizeof(float) * NUM_BINS);
     xTaskCreate(task_oled, "OLED Printing Task", 4096, NULL, 4, &oled_task_handle);
     spectrum_mutex = xSemaphoreCreateMutex();
 
@@ -180,14 +181,13 @@ void app_main(void)
     ESP_LOGI(TAG, "IIR INITIALIZED -- COEFFICIENTS SET");
     
     //----------BUFFER QUEUE INIT FOR DATA TRANSFER----------
-    process_queue = xQueueCreate(4, sizeof(DataBlock));
-    ESP_LOGI(TAG, "Succesfully Created Process Queue");
+    process_queue = xQueueCreate(4, sizeof(int));
     output_queue = xQueueCreate(4, sizeof(int));
-    if (output_queue != NULL)
+    free_queue = xQueueCreate(4, sizeof(int));
+    for (int i = 0; i < 3; i++)
     {
-        ESP_LOGI(TAG, "Succesfully Created Output Queue");
+        xQueueSend(free_queue, &i, 0);
     }
-       
     //----------TASK CREATION-------------------------------- 
     xTaskCreate(task_dsp, "DSP", 16384, NULL, 6, &processing_task_handle);
 
@@ -203,7 +203,6 @@ void i2s_example_read_task(void *pvParameters)
 {
     static int32_t raw_rx_buf[2* BUF_SIZE];
     size_t bytes_read = 0;
-    DataBlock block;
 
     ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_adc));
     ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_bt));
@@ -211,33 +210,30 @@ void i2s_example_read_task(void *pvParameters)
     while(true) {
         if (i2s_channel_read(rx_chan_adc, raw_rx_buf, BUF_SIZE * 2 * sizeof(int32_t), &bytes_read, portMAX_DELAY) == ESP_OK)
         {
+            int buf_idx;
+            xQueueReceive(free_queue, &buf_idx, portMAX_DELAY);
+            int16_t* data = buffer_pool[buf_idx].data;
+
             int samples_read = bytes_read / sizeof(int32_t); // = BUF_SIZE * 2
-            block.length = samples_read / 2; // only take left channel
             int block_idx = 0;
             int sum = 0;
 
             for (int i = 0; i < samples_read; i+=2) // only taking from left channel with  i+= 2
             {
-                block.data[block_idx]  = (int16_t)(raw_rx_buf[i] >> 16); //(int16_t)(((raw_rx_buf[i]  + raw_rx_buf[i+1])/2)>> 16);
-                sum += block.data[block_idx];
+                data[block_idx]  = (int16_t)(raw_rx_buf[i] >> 16); //(int16_t)(((raw_rx_buf[i]  + raw_rx_buf[i+1])/2)>> 16);
+                sum += data[block_idx];
                 block_idx++;
-
-                if (block_idx >= BUF_SIZE) 
-                {
-                    break;
-                }
             }
 
             // send buffer to process
             running_buf_avg = sum / BUF_SIZE;
-            if(xQueueSend(process_queue, &block, portMAX_DELAY) != pdPASS)
+            if(xQueueSend(process_queue, &buf_idx, portMAX_DELAY) != pdPASS)
             {
                 ESP_LOGE(TAG, "PROCESS QUEUE FULL -- DSP TOO SLOW");
             }
         }
     }
 
-    free(raw_rx_buf);
     vTaskDelete(NULL);
 } 
 
@@ -247,20 +243,11 @@ void task_dsp(void *pvParameters)
     int buf_idx = 0;
     float sample_spacing = 1.0 / SAMPLE_RATE;
     int count = 0;
-    int16_t spectrum_buffer[BUF_SIZE];
-    DataBlock adc_block;
-
-    if (xQueueReceive(process_queue, &adc_block, portMAX_DELAY))
-    {
-        memcpy((void*) buffer_pool[buf_idx].data, adc_block.data, BUF_SIZE * sizeof(int16_t));
-    }
+    static int16_t spectrum_buffer[BUF_SIZE];
 
     while (true){
-        if (xQueueReceive(process_queue, &adc_block, portMAX_DELAY))
+        if (xQueueReceive(process_queue, &buf_idx, portMAX_DELAY))
         {
-            memcpy(buffer_pool[buf_idx].data, adc_block.data, adc_block.length * sizeof(int16_t));
-            buffer_pool[buf_idx].length = adc_block.length;     
-
             int16_t* dsp_current_buffer = buffer_pool[buf_idx].data;
 
             // convert adc ints to floats for filtering
@@ -278,14 +265,13 @@ void task_dsp(void *pvParameters)
                 spectrum_buffer[i] = (int16_t) (iir_out[i]);
             }
 
-            if (xQueueSend(output_queue, &buf_idx, portMAX_DELAY) == pdPASS)
-            {
-                buf_idx = (buf_idx + 1) % 3;
-            }
-
             fft(BUF_SIZE, spectrum_buffer, spectrum, sample_spacing);
             spec2bins(N, NUM_BINS, spectrum, spec_binned);
 
+            if (xQueueSend(output_queue, &buf_idx, portMAX_DELAY) != pdPASS)
+            {
+                ESP_LOGI("xQueueSend DSP -> Out", "Failed to Send index to output from dsp"); 
+            }
             count++;
 
             if (count == 20)
@@ -299,13 +285,12 @@ void task_dsp(void *pvParameters)
             }
         }
     }
-
 }
 
 void fft(int N, int16_t* x, float* spectrum, float delta)
 {
 
-    __attribute__((aligned(16))) float fft_buf[2*N]; 
+    static __attribute__((aligned(16))) float fft_buf[2 * BUF_SIZE]; 
     // apply hann window to signal
     for (int i = 0; i < N; i++)
     {
@@ -367,7 +352,6 @@ void print_to_OLED(int num_bins, float* spectrum_binned)
     float max = 0.0;
     float min = -30.0;
     uint8_t spectrum[NUM_BINS];
-    //ESP_LOGI("bin_test", "%f %f %f %f", spectrum_binned[0], spectrum_binned[2], spectrum_binned[4], spectrum_binned[6]);
     
     for (int i = 0; i < NUM_BINS; i++)
     {
