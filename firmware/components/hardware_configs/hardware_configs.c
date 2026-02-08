@@ -105,9 +105,9 @@ i2s_std_config_t std_cfg_simplex = {
     .clk_cfg  = {
         .sample_rate_hz = SAMPLE_RATE,
         .clk_src = I2S_CLK_SRC_DEFAULT,
-        .mclk_multiple = I2S_MCLK_MULTIPLE_384,
+        .mclk_multiple = I2S_MCLK_MULTIPLE_256,
     },
-    .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_32BIT, I2S_SLOT_MODE_STEREO),
+    .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
     .gpio_cfg = {
         .mclk = I2S_GPIO_UNUSED,  
         .bclk = GPIO_NUM_41,

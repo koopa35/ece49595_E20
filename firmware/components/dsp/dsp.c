@@ -42,7 +42,7 @@ void generate_EQ_filters(float* gains_arr, float* edges, float* q_factors)
         float center_f = 0;
         if (i == 0)
         {
-            center_f = (edges[i] + edges[i+1]) / 2; //  arithmetic account for 0 frequency edge
+            center_f = (edges[i] + edges[i+1]) / 2; //  arithmetic mean 
         }
         else
         {
@@ -83,7 +83,7 @@ void apply_EQ(float* input, float* output, float* eq_gains, int len)
 //----------FFT AND SPECTRUM PROCESSING----------
 void fft(int N, int16_t* x, float* spectrum, float delta)
 {
-    __attribute__((aligned(16))) float fft_buf[2*N]; 
+    static __attribute__((aligned(16))) float fft_buf[2*BUF_SIZE]; 
     // apply blackman window to signal
     for (int i = 0; i < N; i++)
     {
@@ -128,35 +128,41 @@ void i2s_example_read_task(void *pvParameters)
 {
     static int32_t raw_rx_buf[2* BUF_SIZE];
     size_t bytes_read = 0;
-    DataBlock block;
 
-    ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_adc));
+    ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_adc)); // enable adc
+    ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_bt)); // enable bt
 
     while(true) {
-        if (i2s_channel_read(rx_chan_adc, raw_rx_buf, BUF_SIZE * 2 * sizeof(int32_t), &bytes_read, portMAX_DELAY) == ESP_OK)
+        i2s_chan_handle_t input_i2s_handle = (input_select == AUX) ? rx_chan_adc : rx_chan_bt;
+
+        if (i2s_channel_read(input_i2s_handle, raw_rx_buf, BUF_SIZE * 2 * sizeof(int32_t), &bytes_read, portMAX_DELAY) == ESP_OK)
         {
+            int buf_idx;
+            xQueueReceive(free_queue, &buf_idx, portMAX_DELAY);
+            int16_t* data = buffer_pool[buf_idx].data;
+
             int samples_read = bytes_read / sizeof(int32_t); // = BUF_SIZE * 2
-            block.length = samples_read / 2; // only take left channel
             int block_idx = 0;
             int sum = 0;
 
             for (int i = 0; i < samples_read; i+=2) // only taking from left channel with i+= 2
             {
-                block.data[block_idx]  = (int16_t)(raw_rx_buf[i] >> 16);
-                sum += block.data[block_idx];
-                block_idx++;
-
-                if (block_idx >= BUF_SIZE) 
+                if (input_select == AUX)
                 {
-                    break;
+                    data[block_idx]  = (int16_t)(raw_rx_buf[i] >> 16);
                 }
+                else if (input_select == BLUETOOTH)
+                {
+                    data[block_idx]  = (int16_t)(raw_rx_buf[i]);
+                }
+
+                sum += data[block_idx];
+                block_idx++;
             }
 
             // send buffer to process
             running_buf_avg = sum / BUF_SIZE;
-            if (process_queue == NULL) {
-                ESP_LOGE(TAG, "process_queue is NULL, cannot send");
-            } else if(xQueueSend(process_queue, &block, portMAX_DELAY) != pdPASS)
+            if(xQueueSend(process_queue, &buf_idx, portMAX_DELAY) != pdPASS)
             {
                 ESP_LOGE(TAG, "PROCESS QUEUE FULL -- DSP TOO SLOW");
             }
@@ -190,8 +196,10 @@ void i2s_example_write_task(void *args)
             /* Write i2s data */
             if (i2s_channel_write(tx_chan, i2s_buf, BUF_SIZE*2*sizeof(int32_t), &bytes_written, portMAX_DELAY) != ESP_OK) 
             {
-                printf("Write Task: i2s write failed\n");
+                ESP_LOGI("I2S OUTPUT", "Write Task: i2s write failed\n");
             }
+
+            xQueueSend(free_queue, &buf_idx, portMAX_DELAY);
         }
     }
     vTaskDelete(NULL);
@@ -203,20 +211,11 @@ void task_dsp(void *pvParameters)
     int buf_idx = 0;
     float sample_spacing = 1.0 / SAMPLE_RATE;
     int count = 0;
-    int16_t spectrum_buffer[BUF_SIZE];
-    DataBlock adc_block;
-
-    if (xQueueReceive(process_queue, &adc_block, portMAX_DELAY))
-    {
-        memcpy((void*) buffer_pool[buf_idx].data, adc_block.data, BUF_SIZE * sizeof(int16_t));
-    }
+    static int16_t spectrum_buffer[BUF_SIZE];
 
     while (true){
-        if (xQueueReceive(process_queue, &adc_block, portMAX_DELAY))
+        if (xQueueReceive(process_queue, &buf_idx, portMAX_DELAY))
         {
-            memcpy(buffer_pool[buf_idx].data, adc_block.data, adc_block.length * sizeof(int16_t));
-            buffer_pool[buf_idx].length = adc_block.length;     
-
             int16_t* dsp_current_buffer = buffer_pool[buf_idx].data;
 
             // convert adc ints to floats for filtering
@@ -234,25 +233,23 @@ void task_dsp(void *pvParameters)
                 spectrum_buffer[i] = (int16_t) (iir_out[i]);
             }
 
-            if (xQueueSend(output_queue, &buf_idx, portMAX_DELAY) == pdPASS)
-            {
-                buf_idx = (buf_idx + 1) % 3;
-            }
-
             fft(BUF_SIZE, spectrum_buffer, spectrum, sample_spacing);
             spec2bins(N, NUM_BINS, spectrum, spec_binned);
 
-            count++;
-
-            if (count == 20)
+            if (xQueueSend(output_queue, &buf_idx, portMAX_DELAY) != pdPASS)
             {
-                if (xSemaphoreTake(spectrum_mutex, 0) == pdPASS)
-                {
-                    memcpy(latest_spectrum, spec_binned, sizeof(latest_spectrum));
-                    count = 0;
-                    xSemaphoreGive(spectrum_mutex);
-                }
+                ESP_LOGI("xQueueSend DSP -> Out", "Failed to Send index to output from dsp"); 
             }
+            //count++;
+
+            //if (count == 20)
+            if (xSemaphoreTake(spectrum_mutex, 0) == pdPASS)
+            {
+                memcpy(latest_spectrum, spec_binned, sizeof(latest_spectrum));
+                count = 0;
+                xSemaphoreGive(spectrum_mutex);
+            }
+            
         }
     }
 }
@@ -264,7 +261,7 @@ void task_oled(void *pvParameters)
 
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(500));
         // wait for new spectrum data from DSP task
         if (xSemaphoreTake(spectrum_mutex, pdMS_TO_TICKS(10)) == pdPASS)
         {
@@ -279,19 +276,21 @@ void print_to_OLED(int num_bins, float* spectrum_binned)
 {
     float max = 0.0;
     float min = -30.0;
+    float local_norm[NUM_BINS];
     
     for (int i = 0; i < NUM_BINS; i++)
     {
-        spectrum_binned[i] = spectrum_binned[i] < min ? min : spectrum_binned[i];
-        spectrum_binned[i] = spectrum_binned[i] > max ? max : spectrum_binned[i];
-        spectrum_binned[i] = 8 * ((spectrum_binned[i] - min) / (max - min));
-        spectrum_norm[i] = (uint8_t) spectrum_binned[i];
+        local_norm[i] = spectrum_binned[i] < min ? min : spectrum_binned[i];
+        local_norm[i] = spectrum_binned[i] > max ? max : spectrum_binned[i];
+        local_norm[i] = 8 * ((local_norm[i] - min) / (max - min));
+        spectrum_norm[i] = (uint8_t) local_norm[i];
     }
 }
 
 //----------PUBLIC DSP INITIALIZATION----------
 esp_err_t dsp_init(void)
 {
+    vTaskDelay(pdMS_TO_TICKS(1000));
     init_double_buffer();
     spectrum_mutex = xSemaphoreCreateMutex();
 
@@ -305,30 +304,24 @@ esp_err_t dsp_init(void)
     ESP_LOGI(TAG, "IIR INITIALIZED -- COEFFICIENTS SET");
     
     //----------BUFFER QUEUE INIT FOR DATA TRANSFER----------
-    process_queue = xQueueCreate(4, sizeof(DataBlock));
-    if (process_queue == NULL) {
-        ESP_LOGE(TAG, "Failed to create process_queue");
-        return ESP_ERR_NO_MEM;
-    }
-    ESP_LOGI(TAG, "Successfully Created Process Queue");
-    
+    process_queue = xQueueCreate(4, sizeof(int));
     output_queue = xQueueCreate(4, sizeof(int));
-    if (output_queue == NULL) {
-        ESP_LOGE(TAG, "Failed to create output_queue");
-        return ESP_ERR_NO_MEM;
+    free_queue = xQueueCreate(4, sizeof(int));
+    for (int i = 0; i < 3; i++)
+    {
+        xQueueSend(free_queue, &i, 0);
     }
-    ESP_LOGI(TAG, "Successfully Created Output Queue");
-
     //----------TASK CREATION-------------------------------- 
     xTaskCreatePinnedToCore(task_dsp, "DSP", 24576, NULL, 6, &processing_task_handle, 1);
 
     //----------OLED SPECTRUM UPDATE TASK--------------------
-    xTaskCreatePinnedToCore(task_oled, "task_oled", 4096, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(task_oled, "task_oled", 4096, NULL, 4, NULL, 0);
 
     //------------------I2S INITIALIZATION--------------------
     i2s_example_init_std_duplex(&tx_chan, &rx_chan_adc); 
-    xTaskCreatePinnedToCore(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 5, NULL, 0); 
-    xTaskCreatePinnedToCore(i2s_example_write_task, "i2s_example_write_task", 4096, NULL, 5, NULL, 0);
+    i2s_init_bluetooth(&rx_chan_bt); 
+    xTaskCreatePinnedToCore(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 6, NULL, 0); 
+    xTaskCreatePinnedToCore(i2s_example_write_task, "i2s_example_write_task", 4096, NULL, 6, NULL, 0);
     ESP_LOGI(TAG, "I2S SUCCESSFULLY INITIALIZED");
 
     return ESP_OK;

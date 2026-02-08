@@ -36,7 +36,7 @@ extern int32_t running_buf_avg;
 
 extern QueueHandle_t process_queue;
 extern QueueHandle_t output_queue;
-extern QueueHandle_t oled_queue;
+extern QueueHandle_t free_queue;
 
 extern float window[BUF_SIZE] __attribute__((aligned(16)));
 extern float spectrum[2 * BUF_SIZE] __attribute__((aligned(16)));

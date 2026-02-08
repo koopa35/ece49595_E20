@@ -28,7 +28,7 @@ int32_t running_buf_avg = 0;
 
 QueueHandle_t process_queue = NULL;
 QueueHandle_t output_queue = NULL;
-QueueHandle_t oled_queue = NULL;
+QueueHandle_t free_queue = NULL;
 
 __attribute__((aligned(16))) float window[BUF_SIZE];
 __attribute__((aligned(16))) float spectrum[2 * BUF_SIZE];
