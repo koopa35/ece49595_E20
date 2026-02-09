@@ -22,8 +22,8 @@
 
 // I2C PINS
 #define I2C_PORT     I2C_NUM_0
-#define I2C_SDA_GPIO 42
-#define I2C_SCL_GPIO 41
+#define I2C_SDA_GPIO 2
+#define I2C_SCL_GPIO 1
 #define I2C_FREQ_HZ  10000
 
 // EEPROM Definitions

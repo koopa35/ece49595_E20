@@ -7,6 +7,7 @@
 
 #include "global_defs.h"
 #include "rotary_encoder.h"
+#include "eeprom_24xx.h"
 
 // Switch configuration
 extern gpio_config_t io_conf;
@@ -26,6 +27,9 @@ extern spi_device_handle_t spi_oled2;
 // I2S configuration
 extern i2s_std_config_t std_cfg_duplex;
 extern i2s_std_config_t std_cfg_simplex;
+
+extern eeprom_24xx_t eeprom_dev;
+
 
 
 // Init functions

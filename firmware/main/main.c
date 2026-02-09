@@ -15,10 +15,12 @@
 #include "hardware_configs.h"
 
 #include "1602A_OLED.h"
-#include "eeprom.h"
+#include "eeprom_24xx.h"
 #include "rotary_encoder.h"
 #include "user_interface.h"
 #include "dsp.h"
+
+
 
 //----------APPLICATION ENTRY POINT----------
 void app_main(void)
@@ -39,6 +41,15 @@ void app_main(void)
     print(spi_oled1, "Initializing...");
     vTaskDelay(pdMS_TO_TICKS(1000));
     
+    //----------I2C & EEPROM INITIALIZATION----------
+    i2c_master_init();
+    vTaskDelay(pdMS_TO_TICKS(100));
+    ESP_ERROR_CHECK(eeprom_24xx_read_bytes(&eeprom_dev, 0x0000, (uint8_t*)eq_gains, sizeof(eq_gains)));
+    vTaskDelay(pdMS_TO_TICKS(100));
+    
+    //----------START EEPROM PERSISTENCE TASK----------
+    ESP_ERROR_CHECK(eeprom_24xx_start_persistence_task(&eeprom_dev, 5));
+        
     //----------ROTARY ENCODER INITIALIZATION----------
     ESP_ERROR_CHECK(rotary_init(&enc1));
     ESP_ERROR_CHECK(rotary_init(&enc2));
@@ -54,7 +65,7 @@ void app_main(void)
     while (1) {
         input_select = (gpio_get_level(SOURCE_SEL)) ? AUX : BLUETOOTH;
         display_power = (gpio_get_level(DISP_POWER)) ? OFF : ON;
+        
         vTaskDelay(pdMS_TO_TICKS(100));
     }
-    
 } 

@@ -80,6 +80,15 @@ void i2c_master_init(void)
     ESP_ERROR_CHECK(i2c_driver_install(I2C_PORT, conf.mode, 0, 0, 0));
 }
 
+// EEPROM device instance
+eeprom_24xx_t eeprom_dev = {
+    .i2c_port = I2C_PORT,
+    .dev_addr_7bit = EEPROM_ADDR,
+    .size_bytes = EEPROM_SIZE_BYTES,
+    .page_size = EEPROM_PAGE_SIZE,
+    .timeout_ms = 1000
+};
+
 //----------AUDIO DSP---------------//
 
 // Duplex I2S for ADC/DAC
@@ -102,12 +111,14 @@ i2s_std_config_t std_cfg_duplex = {
 
 // Simplex I2S for BT
 i2s_std_config_t std_cfg_simplex = {
-    .clk_cfg  = {
-        .sample_rate_hz = SAMPLE_RATE,
-        .clk_src = I2S_CLK_SRC_DEFAULT,
-        .mclk_multiple = I2S_MCLK_MULTIPLE_256,
-    },
-    .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
+    .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(44100),
+    // .clk_cfg  = {
+    //     .sample_rate_hz = SAMPLE_RATE,
+    //     .clk_src = I2S_CLK_SRC_DEFAULT,
+    //     // .mclk_multiple = I2S_MCLK_MULTIPLE_256,
+    // },
+    .slot_cfg = I2S_STD_MSB_SLOT_DEFAULT_CONFIG
+    (I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
     .gpio_cfg = {
         .mclk = I2S_GPIO_UNUSED,  
         .bclk = GPIO_NUM_41,
@@ -136,6 +147,7 @@ void i2s_example_init_std_duplex(i2s_chan_handle_t* a_tx_chan, i2s_chan_handle_t
 void i2s_init_bluetooth(i2s_chan_handle_t* a_rx_chan)
 {
     i2s_chan_config_t rx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_SLAVE);
+    rx_chan_cfg.auto_clear = true;  // Add this
     
     ESP_ERROR_CHECK(i2s_new_channel(&rx_chan_cfg, NULL, a_rx_chan));
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(*a_rx_chan, &std_cfg_simplex));

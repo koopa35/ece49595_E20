@@ -129,8 +129,10 @@ void i2s_example_read_task(void *pvParameters)
     static int32_t raw_rx_buf[2* BUF_SIZE];
     size_t bytes_read = 0;
 
-    ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_adc)); // enable adc
+    // ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_adc)); // enable adc
     ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_bt)); // enable bt
+
+    vTaskDelay(pdMS_TO_TICKS(100)); // delay to ensure i2s is fully enabled before reading
 
     while(true) {
         i2s_chan_handle_t input_i2s_handle = (input_select == AUX) ? rx_chan_adc : rx_chan_bt;
@@ -162,13 +164,14 @@ void i2s_example_read_task(void *pvParameters)
 
             // send buffer to process
             running_buf_avg = sum / BUF_SIZE;
+
             if(xQueueSend(process_queue, &buf_idx, portMAX_DELAY) != pdPASS)
             {
                 ESP_LOGE(TAG, "PROCESS QUEUE FULL -- DSP TOO SLOW");
             }
         }
     }
-    vTaskDelete(NULL);
+    // vTaskDelete(NULL);
 }
 
 void i2s_example_write_task(void *args)
@@ -229,8 +232,8 @@ void task_dsp(void *pvParameters)
             //filling filtered signals out to output & spectrum
             for (int i = 0; i < BUF_SIZE; i++)
             {
-                dsp_current_buffer[i] = (int16_t) (iir_out[i]); 
-                spectrum_buffer[i] = (int16_t) (iir_out[i]);
+                dsp_current_buffer[i] = (int16_t) (iir_in[i]); 
+                spectrum_buffer[i] = (int16_t) (iir_in[i]);
             }
 
             fft(BUF_SIZE, spectrum_buffer, spectrum, sample_spacing);
@@ -259,6 +262,7 @@ void task_oled(void *pvParameters)
 {
     float spec_binned[NUM_BINS];
 
+
     while (1)
     {
         vTaskDelay(pdMS_TO_TICKS(500));
@@ -277,6 +281,10 @@ void print_to_OLED(int num_bins, float* spectrum_binned)
     float max = 0.0;
     float min = -30.0;
     float local_norm[NUM_BINS];
+
+ESP_LOGE(TAG, "Spectrum Binned: %.2f, %.2f, %.2f, %.2f",
+         spectrum_binned[0], spectrum_binned[1],
+         spectrum_binned[2], spectrum_binned[3]);    
     
     for (int i = 0; i < NUM_BINS; i++)
     {
@@ -312,16 +320,16 @@ esp_err_t dsp_init(void)
         xQueueSend(free_queue, &i, 0);
     }
     //----------TASK CREATION-------------------------------- 
-    xTaskCreatePinnedToCore(task_dsp, "DSP", 24576, NULL, 6, &processing_task_handle, 1);
+    xTaskCreate(task_dsp, "DSP", 24576, NULL, 5, &processing_task_handle);
 
     //----------OLED SPECTRUM UPDATE TASK--------------------
-    xTaskCreatePinnedToCore(task_oled, "task_oled", 4096, NULL, 4, NULL, 0);
+    xTaskCreate(task_oled, "task_oled", 4096, NULL, 4, NULL);
 
     //------------------I2S INITIALIZATION--------------------
     i2s_example_init_std_duplex(&tx_chan, &rx_chan_adc); 
     i2s_init_bluetooth(&rx_chan_bt); 
-    xTaskCreatePinnedToCore(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 6, NULL, 0); 
-    xTaskCreatePinnedToCore(i2s_example_write_task, "i2s_example_write_task", 4096, NULL, 6, NULL, 0);
+    xTaskCreate(i2s_example_read_task, "i2s_example_read_task", 4096, NULL, 6, NULL); 
+    xTaskCreate(i2s_example_write_task, "i2s_example_write_task", 4096, NULL, 6, NULL);
     ESP_LOGI(TAG, "I2S SUCCESSFULLY INITIALIZED");
 
     return ESP_OK;
