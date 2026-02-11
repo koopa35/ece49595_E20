@@ -18,8 +18,6 @@ extern float temperature;
 
 extern uint16_t volume;
 
-extern uint16_t equalizer_band[EQ_BANDS];
-
 extern float eq_gains[EQ_BANDS];
 extern float band_edges[EQ_BANDS + 1];
 extern int freq_bins[];

@@ -46,14 +46,12 @@ void app_main(void)
     xTaskCreate(eeprom_24xx_task, "eeprom_task", 4096, NULL, 5, NULL);
     vTaskDelay(pdMS_TO_TICKS(100));
             
-    
+
     for (int i = 0; i < EQ_BANDS; i++)
     {
         ESP_LOGI("eq_gains_after eeprom", "%.2f", eq_gains[i]);
         //eq_gains[i] = 1;
     }
-    //----------START EEPROM PERSISTENCE TASK----------
-    ESP_ERROR_CHECK(eeprom_24xx_start_persistence_task(&eeprom_dev, 5));
         
     //----------ROTARY ENCODER INITIALIZATION----------
     ESP_ERROR_CHECK(rotary_init(&enc1));
@@ -71,7 +69,8 @@ void app_main(void)
         input_select = (gpio_get_level(SOURCE_SEL)) ? AUX : BLUETOOTH;
         display_power = (gpio_get_level(DISP_POWER)) ? OFF : ON;
         
-        eeprom_24xx_write_bytes(&eeprom_dev, 0x0, (const uint8_t *)&equalizer_band[0], sizeof(equalizer_band));
+        // Deprecated: used to persist `equalizer_band` (uint16_t). eq_gains (float[]) is persisted
+        // by the EEPROM task. Removing this write to avoid accidental corruption.
 
         vTaskDelay(pdMS_TO_TICKS(100));
 

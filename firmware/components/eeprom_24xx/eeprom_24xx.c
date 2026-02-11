@@ -14,13 +14,8 @@
 // Previous values for change detection
 static uint16_t prev_volume = 67;
 
-static uint16_t prev_equalizer_band[EQ_BANDS] = {
-    50, 50, 50, 50, 50, 50, 50, 50
-};
-
+float prev_eq_gains[EQ_BANDS] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 static uint32_t prev_runtime_total_sec = 3600;
-static uint32_t prev_next_change_sec = 3600000;
-
 
 static inline uint16_t eeprom_max_addr(const eeprom_24xx_t *dev)
 {
@@ -110,7 +105,13 @@ esp_err_t eeprom_24xx_read_bytes(
 esp_err_t eeprom_24xx_load (const eeprom_24xx_t *dev) {
     eeprom_24xx_read_bytes(dev, VOLUME_ADDR, (uint8_t *)&volume, sizeof(volume));
     eeprom_24xx_read_bytes(dev, RUNTIME_ADDR, (uint8_t *)&runtime_total_sec, sizeof(runtime_total_sec));
-    eeprom_24xx_read_bytes(dev, EQ_ADDR, (uint8_t *)&equalizer_band[0], sizeof(equalizer_band));
+
+    for (int i = 0; i < EQ_BANDS; i++) {
+        if (prev_eq_gains[i] != eq_gains[i]) {
+            eeprom_24xx_read_bytes(&eeprom_dev, EQ_ADDR + (i * sizeof(float)), (uint8_t *)&eq_gains[i], sizeof(float));
+            prev_eq_gains[i] = eq_gains[i];
+        }
+    }
 
     return ESP_OK;
 }
@@ -120,9 +121,9 @@ void eeprom_24xx_task(void *pvParameters)
 {
     while (1) {
         for (int i = 0; i < EQ_BANDS; i++) {
-            if (prev_equalizer_band[i] != equalizer_band[i]) {
-                eeprom_24xx_write_bytes(&eeprom_dev, EQ_ADDR + (i * sizeof(uint16_t)), (const uint8_t *)&equalizer_band[i], sizeof(uint16_t));
-                prev_equalizer_band[i] = equalizer_band[i];
+            if (prev_eq_gains[i] != eq_gains[i]) {
+                eeprom_24xx_write_bytes(&eeprom_dev, EQ_ADDR + (i * sizeof(float)), (const uint8_t *)&eq_gains[i], sizeof(float));
+                prev_eq_gains[i] = eq_gains[i];
             }
         }
 

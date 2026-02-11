@@ -93,21 +93,21 @@ void menu_task(void *pvParameters)
         // draw frequency spectrum on second display
         if (current_menu == MENU_EQ) {
             uint8_t temp[16] = {
-                equalizer_band[0] / 12,
+                eq_gains[0] + 3,
                 0,
-                equalizer_band[1] / 12,
+                eq_gains[1] + 3,
                 0,
-                equalizer_band[2] / 12,
+                eq_gains[2] + 3,
                 0,
-                equalizer_band[3] / 12,
+                eq_gains[3] + 3,
                 0,
-                equalizer_band[4] / 12,
+                eq_gains[4] + 3,
                 0,
-                equalizer_band[5] / 12,
+                eq_gains[5] + 3,
                 0,
-                equalizer_band[6] / 12,
+                eq_gains[6] + 3,
                 0,
-                equalizer_band[7] / 12,
+                eq_gains[7] + 3,
                 0
             };
                 
@@ -133,7 +133,7 @@ void menu_task(void *pvParameters)
             if (check_rotary_button_pressed(encoder_menu)) {
                 // both buttons pressed: reset EQ to default values
                 for (int i = 0; i < EQ_BANDS; i++) {
-                    equalizer_band[i] = 50;
+                    eq_gains[i] = 1.0;
                 }
                 need_refresh = true;         
             } else {
@@ -187,7 +187,7 @@ void menu_task(void *pvParameters)
         }
 
         // update menu item based on rotary encoder
-        update += get_rotary_direction(encoder_control) * (update_10x ? 10 : 1);
+        update += get_rotary_direction(encoder_control);
         if (update != 0) {
             switch (current_menu) {
                 case MENU_MAIN :
@@ -198,7 +198,7 @@ void menu_task(void *pvParameters)
                     need_refresh = true;
                     break;
                 case MENU_EQ :
-                    equalizer_band[cursor] = (equalizer_band[cursor] + update > 100) ? 100 : (equalizer_band[cursor] + update < 0) ? 0 : equalizer_band[cursor] + update;
+                    eq_gains[cursor] = (eq_gains[cursor] + update > 5) ? 5 : (eq_gains[cursor] + update < 0) ? 0 : eq_gains[cursor] + update;
                     need_refresh = true;
                     break;
                 default :
@@ -298,7 +298,7 @@ esp_err_t draw_menu(spi_device_handle_t spi_oled1, uint8_t cursor, menu_type_t m
                 set_cursor(spi_oled1, row, 0);
                 
                 char eq_str[STR_LEN];
-                snprintf(eq_str, STR_LEN, "Band %d: %*d%%", idx, 7, equalizer_band[idx]);
+                snprintf(eq_str, STR_LEN, "Band %d: %*f%%", idx, 7, eq_gains[idx]);
                 print(spi_oled1, eq_str);
                 }
             break;
