@@ -6,7 +6,7 @@
 #define MAIN_MENU_ITEMS 7
 #define VOLUME_MENU_ITEMS 1
 #define METADATA_MENU_ITEMS 3
-#define EQ_MENU_ITEMS 7
+#define EQ_MENU_ITEMS 8
 #define INPUT_SELECT_MENU_ITEMS 1
 #define PIVT_MENU_ITEMS 4
 #define RUNTIME_MENU_ITEMS 2
@@ -32,6 +32,7 @@ static menu_type_t current_menu = MENU_MAIN;
 static bool update_10x = false;
 static bool prev_input_select = BLUETOOTH;
 static bool prev_display_power = ON;
+static uint32_t prev_runtime_total_sec = 0;
 
 typedef struct {
     spi_device_handle_t spi_oled1;

@@ -21,7 +21,6 @@
 #include "dsp.h"
 
 
-
 //----------APPLICATION ENTRY POINT----------
 void app_main(void)
 {
@@ -43,8 +42,10 @@ void app_main(void)
     //----------I2C & EEPROM INITIALIZATION----------
     i2c_master_init();
     vTaskDelay(pdMS_TO_TICKS(100));
-    ESP_ERROR_CHECK(eeprom_24xx_read_bytes(&eeprom_dev, 0x0000, (uint8_t*)eq_gains, sizeof(eq_gains)));
+    ESP_ERROR_CHECK(eeprom_24xx_load(&eeprom_dev));
+    xTaskCreate(eeprom_24xx_task, "eeprom_task", 4096, NULL, 5, NULL);
     vTaskDelay(pdMS_TO_TICKS(100));
+            
     
     for (int i = 0; i < EQ_BANDS; i++)
     {
@@ -70,6 +71,13 @@ void app_main(void)
         input_select = (gpio_get_level(SOURCE_SEL)) ? AUX : BLUETOOTH;
         display_power = (gpio_get_level(DISP_POWER)) ? OFF : ON;
         
+        eeprom_24xx_write_bytes(&eeprom_dev, 0x0, (const uint8_t *)&equalizer_band[0], sizeof(equalizer_band));
+
         vTaskDelay(pdMS_TO_TICKS(100));
+
+        for (int i = 0; i < 10; i++) {
+            runtime_total_sec++;
+            next_change_sec = ELECTRODE_REPLACE_TIME - runtime_total_sec;
+        }
     }
-} 
+}

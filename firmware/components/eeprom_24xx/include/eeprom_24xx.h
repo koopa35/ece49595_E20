@@ -31,23 +31,6 @@ esp_err_t eeprom_24xx_read_bytes(
     size_t len
 );
 
-// Non-blocking async write
-const eeprom_24xx_t *eeprom_24xx_write_bytes_async_start(
-    const eeprom_24xx_t *dev,
-    uint16_t mem_addr,
-    const uint8_t *data,
-    size_t len
-);
+esp_err_t eeprom_24xx_load (const eeprom_24xx_t *dev);
 
-bool eeprom_24xx_write_async_is_done(
-    const eeprom_24xx_t *dev
-);
-
-// Mark global variables as dirty (need to be saved)
-void eeprom_mark_dirty(void);
-
-// Start persistence task that monitors and saves changed variables
-esp_err_t eeprom_24xx_start_persistence_task(
-    const eeprom_24xx_t *dev,
-    uint8_t priority
-);
+void eeprom_24xx_task(void *pvParameters);

@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <stdarg.h>
 #include <inttypes.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -16,7 +15,6 @@
 #include "nvs_flash.h"
 #include "esp_system.h"
 #include "esp_log.h"
-#include "driver/uart.h"
 
 #include "esp_bt.h"
 #include "bt_app_core.h"
@@ -35,21 +33,10 @@ enum {
     BT_APP_EVT_STACK_UP = 0,
 };
 
-/* UART1 configuration */
-#define UART1_TXD_PIN 17
-#define UART1_RXD_PIN 18
-#define UART1_BAUD_RATE 115200
-
 /********************************
  * STATIC FUNCTION DECLARATIONS
  *******************************/
 
-/* Initialize UART1 */
-static void uart1_init(void);
-/* Send string to UART1 */
-static void uart1_write(const char *str);
-/* Custom vprintf function that writes to both UART0 and UART1 */
-static int custom_vprintf(const char *fmt, va_list args);
 /* Device callback function */
 static void bt_app_dev_cb(esp_bt_dev_cb_event_t event, esp_bt_dev_cb_param_t *param);
 /* GAP callback function */
@@ -60,44 +47,6 @@ static void bt_av_hdl_stack_evt(uint16_t event, void *p_param);
 /*******************************
  * STATIC FUNCTION DEFINITIONS
  ******************************/
-
-static void uart1_init(void)
-{
-    const uart_config_t uart_config = {
-        .baud_rate = UART1_BAUD_RATE,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-    };
-    
-    uart_param_config(UART_NUM_1, &uart_config);
-    uart_set_pin(UART_NUM_1, UART1_TXD_PIN, UART1_RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    uart_driver_install(UART_NUM_1, 1024, 1024, 0, NULL, 0);
-}
-
-static void uart1_write(const char *str)
-{
-    if (str == NULL) {
-        return;
-    }
-    uart_write_bytes(UART_NUM_1, str, strlen(str));
-}
-
-static int custom_vprintf(const char *fmt, va_list args)
-{
-    char buffer[512];
-    int ret = vsnprintf(buffer, sizeof(buffer), fmt, args);
-    
-    /* Write to default console (UART0) */
-    printf("%s", buffer);
-    
-    /* Also write to UART1 */
-    uart1_write(buffer);
-    
-    return ret;
-}
-
 static char *bda2str(uint8_t * bda, char *str, size_t size)
 {
     if (bda == NULL || str == NULL || size < 18) {
@@ -255,13 +204,6 @@ static void bt_av_hdl_stack_evt(uint16_t event, void *p_param)
 void app_main(void)
 {
     char bda_str[18] = {0};
-    
-    /* Initialize UART1 for dual logging */
-    uart1_init();
-    
-    /* Set custom vprintf to log to both UARTs */
-    esp_log_set_vprintf(custom_vprintf);
-    
     /* initialize NVS — it is used to store PHY calibration data */
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {

@@ -32,6 +32,8 @@
 #define EEPROM_MAX_ADDR   (EEPROM_SIZE_BYTES - 1)
 #define EEPROM_PAGE_SIZE  32
 
+#define ELECTRODE_REPLACE_TIME 3600000
+
 // States
 #define BLUETOOTH 1
 #define AUX 0
