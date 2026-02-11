@@ -25,7 +25,6 @@
 //----------APPLICATION ENTRY POINT----------
 void app_main(void)
 {
-
     //----------HARDWARE INITIALIZATION----------
     vTaskDelay(pdMS_TO_TICKS(100));
     ESP_ERROR_CHECK(gpio_config(&io_conf));
@@ -47,6 +46,11 @@ void app_main(void)
     ESP_ERROR_CHECK(eeprom_24xx_read_bytes(&eeprom_dev, 0x0000, (uint8_t*)eq_gains, sizeof(eq_gains)));
     vTaskDelay(pdMS_TO_TICKS(100));
     
+    for (int i = 0; i < EQ_BANDS; i++)
+    {
+        ESP_LOGI("eq_gains_after eeprom", "%.2f", eq_gains[i]);
+        //eq_gains[i] = 1;
+    }
     //----------START EEPROM PERSISTENCE TASK----------
     ESP_ERROR_CHECK(eeprom_24xx_start_persistence_task(&eeprom_dev, 5));
         

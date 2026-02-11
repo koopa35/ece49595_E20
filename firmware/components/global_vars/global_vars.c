@@ -13,7 +13,7 @@ uint16_t equalizer_band[EQ_BANDS] = {
 };
 
 float eq_gains[EQ_BANDS] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-float band_edges[EQ_BANDS + 1] = {0, 350.0, 1100.0, 2200.0, 4000.0, 6000.0, 8000.0, 10500.0, SAMPLE_RATE/2};
+float band_edges[EQ_BANDS + 1] = {0.0, 350.0, 1100.0, 2200.0, 4000.0, 6000.0, 8000.0, 10500.0, SAMPLE_RATE/2};
 int freq_bins[] = {0, 100, 350, 700, 1100, 1600, 2200, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10500, 12000, SAMPLE_RATE/2};
 
 float q_factors[EQ_BANDS] = {0.7, 0.85, 1.41, 1.6, 2.4, 3.4, 3.6, 0.7};

@@ -64,18 +64,19 @@ void generate_EQ_filters(float* gains_arr, float* edges, float* q_factors)
     }
 }
 
+static __attribute__((aligned(16))) float temp_out[BUF_SIZE];
 void apply_EQ(float* input, float* output, float* eq_gains, int len)
 {
     memset(output, 0, BUF_SIZE * sizeof(*iir_out));
 
-    float temp_out[BUF_SIZE];
+    //float temp_out[BUF_SIZE];
     for (int i = 0; i < EQ_BANDS; i++) // for each band
     {
         dsps_biquad_f32(input, temp_out, len, iir_coeffs[i], iir_delay[i]);
         //ESP_LOGI("iir filter", "%.2f", eq_gains[i]);
         for (int j = 0; j < BUF_SIZE; j++) // for each element in the buffer in this band apply gain
         {
-            output[j] += temp_out[j] * eq_gains[i];
+            output[j] += temp_out[j] * eq_gains[i] / EQ_BANDS;
         }
     }
 }
@@ -147,7 +148,10 @@ void i2s_example_read_task(void *pvParameters)
             int block_idx = 0;
             int sum = 0;
 
-            for (int i = 0; i < samples_read; i+=2) // only taking from left channel with i+= 2
+            //  BE CAREFUL BE CAREFYL BE CAREFUL i+= 2 samples only L for ADC (32 bitwidth) but skips samples for bluetooth (16 bit width)
+            //  Every sample from raw_rx_buf reads in 32 bits.
+            //  Data Format for ADC {32 bits (L) |  32 bits (R)} for Bluetooth {16 bits (L) | 16 bits (R)} BE CAREFUL 
+            for (int i = 0; i < samples_read; i++)     
             {
                 if (input_select == AUX)
                 {
@@ -242,14 +246,18 @@ void task_dsp(void *pvParameters)
             {
                 ESP_LOGI("xQueueSend DSP -> Out", "Failed to Send index to output from dsp"); 
             }
-            //count++;
+            count++;
 
-            //if (count == 20)
-            if (xSemaphoreTake(spectrum_mutex, 0) == pdPASS)
+            if (count >= 20)
             {
-                memcpy(latest_spectrum, spec_binned, sizeof(latest_spectrum));
-                count = 0;
-                xSemaphoreGive(spectrum_mutex);
+                if (xSemaphoreTake(spectrum_mutex, 0) == pdPASS)
+                {
+                    memcpy(latest_spectrum, spec_binned, sizeof(latest_spectrum));
+                    xSemaphoreGive(spectrum_mutex);
+                    count = 0;
+
+                    xTaskNotifyGive(oled_task_handle);
+                }
             }
             
         }
@@ -264,26 +272,28 @@ void task_oled(void *pvParameters)
 
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(300));
-        // wait for new spectrum data from DSP task
-        if (xSemaphoreTake(spectrum_mutex, pdMS_TO_TICKS(10)) == pdPASS)
+        if(ulTaskNotifyTake(pdTRUE, portMAX_DELAY))
         {
-            memcpy(spec_binned, latest_spectrum, sizeof(spec_binned));
-            xSemaphoreGive(spectrum_mutex);
-            print_to_OLED(NUM_BINS, spec_binned);
+            // wait for new spectrum data from DSP task
+            if (xSemaphoreTake(spectrum_mutex, pdMS_TO_TICKS(20)) == pdPASS)
+            {
+                memcpy(spec_binned, latest_spectrum, sizeof(spec_binned));
+                xSemaphoreGive(spectrum_mutex);
+                print_to_OLED(NUM_BINS, spec_binned);
+            }
         }
     }
 }
 
 void print_to_OLED(int num_bins, float* spectrum_binned)
 {
-    float max = 25.0;
-    float min = 0.0;
+    float max = 10.0;
+    float min = -15.0;
 
+    //ESP_LOGE(TAG, "Spectrum Binned: %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f", spectrum_binned[0], spectrum_binned[1], spectrum_binned[2], spectrum_binned[3], spectrum_binned[4], spectrum_binned[5], spectrum_binned[6], spectrum_binned[7]);
     for (int i = 0; i < NUM_BINS; i++)
     {
         float val = spectrum_binned[i];
-        //ESP_LOGE(TAG, "Spectrum Binned: %.2f", spectrum_binned[i]);
         val = val < min ? min : val;
         val = val > max ? max : val;
 
@@ -295,10 +305,15 @@ void print_to_OLED(int num_bins, float* spectrum_binned)
 //----------PUBLIC DSP INITIALIZATION----------
 esp_err_t dsp_init(void)
 {
+    for (int i = 0; i < EQ_BANDS; i++)
+    {
+        ESP_LOGI("eq_gains", "%.2f", eq_gains[i]);
+        eq_gains[i] = 1;
+    }
+
     vTaskDelay(pdMS_TO_TICKS(1000));
     init_double_buffer();
     spectrum_mutex = xSemaphoreCreateMutex();
-
     //----------FFT INITIALIZATIONS-------
     dsps_wind_blackman_f32(window, BUF_SIZE); // generate blackman window for fft
     ESP_ERROR_CHECK(dsps_fft2r_init_fc32(NULL, 2*BUF_SIZE)); // Initialize FFT2R
@@ -317,15 +332,10 @@ esp_err_t dsp_init(void)
         xQueueSend(free_queue, &i, 0);
     }
     //----------TASK CREATION--------------------------------
-    for (int i = 0; i < EQ_BANDS; i++)
-    {
-        ESP_LOGI("eq_gains", "%.2f", eq_gains[i]);
-        eq_gains[i] = 1;
-    }
     xTaskCreate(task_dsp, "DSP", 24576, NULL, 5, &processing_task_handle);
 
     //----------OLED SPECTRUM UPDATE TASK--------------------
-    xTaskCreate(task_oled, "task_oled", 4096, NULL, 4, NULL);
+    xTaskCreate(task_oled, "task_oled", 4096, NULL, 4, &oled_task_handle);
 
     //------------------I2S INITIALIZATION--------------------
     i2s_example_init_std_duplex(&tx_chan, &rx_chan_adc); 
