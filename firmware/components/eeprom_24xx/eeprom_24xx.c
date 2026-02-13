@@ -107,10 +107,8 @@ esp_err_t eeprom_24xx_load (const eeprom_24xx_t *dev) {
     eeprom_24xx_read_bytes(dev, RUNTIME_ADDR, (uint8_t *)&runtime_total_sec, sizeof(runtime_total_sec));
 
     for (int i = 0; i < EQ_BANDS; i++) {
-        if (prev_eq_gains[i] != eq_gains[i]) {
             eeprom_24xx_read_bytes(&eeprom_dev, EQ_ADDR + (i * sizeof(float)), (uint8_t *)&eq_gains[i], sizeof(float));
             prev_eq_gains[i] = eq_gains[i];
-        }
     }
 
     return ESP_OK;

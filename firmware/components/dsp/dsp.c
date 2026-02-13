@@ -305,11 +305,11 @@ void print_to_OLED(int num_bins, float* spectrum_binned)
 //----------PUBLIC DSP INITIALIZATION----------
 esp_err_t dsp_init(void)
 {
-    for (int i = 0; i < EQ_BANDS; i++)
-    {
-        ESP_LOGI("eq_gains", "%.2f", eq_gains[i]);
-        eq_gains[i] = 1;
-    }
+    // for (int i = 0; i < EQ_BANDS; i++)
+    // {
+    //     ESP_LOGI("eq_gains", "%.2f", eq_gains[i]);
+    //     eq_gains[i] = 1;
+    // }
 
     vTaskDelay(pdMS_TO_TICKS(1000));
     init_double_buffer();
