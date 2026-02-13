@@ -49,9 +49,9 @@ void generate_EQ_filters(float* gains_arr, float* edges, float* q_factors)
             center_f = sqrt(edges[i] * edges[i+1]); // geometric mean
         }
 
-        float q_factor = 0.707f;// 1 * center_f / (edges[i+1] - edges[i]);
+        float q_factor = 1 * center_f / (edges[i+1] - edges[i]);
 
-        if (dsps_biquad_gen_bpf0db_f32(iir_coeffs[i], center_f / SAMPLE_RATE, q_factor) == ESP_OK)
+        if (dsps_biquad_gen_peakingEQ_f32(iir_coeffs[i], center_f / SAMPLE_RATE, q_factor) == ESP_OK)
         {
             ESP_LOGI("IIR FILTERS", "Successfully Created Filter. Range [%.0f, %.0f] Gain %.2f", edges[i], edges[i+1], gains_arr[i]);
         }
@@ -130,7 +130,7 @@ void i2s_example_read_task(void *pvParameters)
     static int32_t raw_rx_buf[2* BUF_SIZE];
     size_t bytes_read = 0;
 
-    // ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_adc)); // enable adc
+    ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_adc)); // enable adc
     ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_bt)); // enable bt
 
     vTaskDelay(pdMS_TO_TICKS(100)); // delay to ensure i2s is fully enabled before reading
@@ -156,6 +156,7 @@ void i2s_example_read_task(void *pvParameters)
                 if (input_select == AUX)
                 {
                     data[block_idx]  = (int16_t)(raw_rx_buf[i] >> 16);
+                    i++;
                 }
                 else if (input_select == BLUETOOTH)
                 {
@@ -192,7 +193,7 @@ void i2s_example_write_task(void *args)
             int16_t* data_out = buffer_pool[buf_idx].data;
             for (int i = 0; i < (BUF_SIZE); i++)
             {
-                int32_t sample = (int32_t)data_out[i] * 5;
+                int32_t sample = (int32_t)data_out[i];
                 out_sum += sample;
                 int32_t s32 = sample << 16;
                 i2s_buf[2*i]     = s32; // Left
