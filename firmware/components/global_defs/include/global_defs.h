@@ -59,6 +59,7 @@
 #define I2S_SIMPLEX_BCLK 41
 #define I2S_SIMPLEX_WS   42
 #define I2S_SIMPLEX_DIN  45
+#define CLK_FREQ 160000000
 
 typedef struct {
     int16_t data[BUF_SIZE];

@@ -201,6 +201,7 @@ void menu_task(void *pvParameters)
                                        (eq_gains[cursor] + (update * 0.1) < 0.0 ? 0.0 :
                                         eq_gains[cursor] + (update * 0.1)));
                     need_refresh = true;
+                    update_coeffs(cursor, eq_gains[cursor]);
                     break;
                 default :
                     break;

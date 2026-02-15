@@ -15,3 +15,4 @@ void fft(int N, int16_t* x, float* spectrum, float delta);
 void spec2bins(int N, int N_bins, float* spectrum, float* spectrum_binned);
 void task_oled(void *pvParameters);
 void print_to_OLED(int num_bins, float* spectrum_binned);
+void update_coeffs(int band_num, float gain);

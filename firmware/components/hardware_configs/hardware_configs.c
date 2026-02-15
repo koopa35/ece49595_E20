@@ -112,7 +112,7 @@ i2s_std_config_t std_cfg_duplex = {
 
 // Simplex I2S for BT
 i2s_std_config_t std_cfg_simplex = {
-    .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(44100),
+    .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(SAMPLE_RATE),
     // .clk_cfg  = {
     //     .sample_rate_hz = SAMPLE_RATE,
     //     .clk_src = I2S_CLK_SRC_DEFAULT,
@@ -137,7 +137,14 @@ i2s_std_config_t std_cfg_simplex = {
 
 void i2s_example_init_std_duplex(i2s_chan_handle_t* a_tx_chan, i2s_chan_handle_t* a_rx_chan)
 {
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+    i2s_chan_config_t chan_cfg = {
+        // I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
+        .id = I2S_NUM_0, 
+        .role = I2S_ROLE_MASTER,
+        .dma_desc_num = 2,
+        .dma_frame_num = 256,
+        .auto_clear = true,
+    };
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, a_tx_chan, a_rx_chan));
 
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(*a_tx_chan, &std_cfg_duplex));
@@ -147,8 +154,13 @@ void i2s_example_init_std_duplex(i2s_chan_handle_t* a_tx_chan, i2s_chan_handle_t
 
 void i2s_init_bluetooth(i2s_chan_handle_t* a_rx_chan)
 {
-    i2s_chan_config_t rx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_SLAVE);
-    rx_chan_cfg.auto_clear = true;  // Add this
+    i2s_chan_config_t rx_chan_cfg = {//I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_1, I2S_ROLE_SLAVE);
+        .id = I2S_NUM_1, 
+        .role = I2S_ROLE_SLAVE,
+        .dma_desc_num = 2,
+        .dma_frame_num = 256,
+        .auto_clear = true,
+    };
     
     ESP_ERROR_CHECK(i2s_new_channel(&rx_chan_cfg, NULL, a_rx_chan));
     ESP_ERROR_CHECK(i2s_channel_init_std_mode(*a_rx_chan, &std_cfg_simplex));

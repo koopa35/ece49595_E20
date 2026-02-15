@@ -35,12 +35,38 @@ static void init_double_buffer(void)
 }
 
 //----------EQ FILTER GENERATION AND APPLICATION----------
+void update_coeffs(int band_num, float gain)
+{
+    if (gain < 0.001)
+    {
+        gain = 0.001;
+    }
+    float center_f = sqrt(band_edges[band_num] * band_edges[band_num+1]);
+    float w0 = 2 * M_PI * center_f / SAMPLE_RATE;
+    float alpha = sin(w0) / (2 * q_factors[band_num]);
+    float A = sqrt(gain);
+
+    float b0 = 1 + alpha * A;
+    float b1 = -2 * cos(w0);
+    float b2 = 1 - alpha * A;
+    float a0 = 1 + alpha / A;
+    float a1 = -2 * cos(w0);
+    float a2 = 1 - alpha / A;
+
+    iir_coeffs[band_num][0] = b0 / a0;
+    iir_coeffs[band_num][1] = b1 / a0;
+    iir_coeffs[band_num][2] = b2 / a0;
+    iir_coeffs[band_num][3] = a1 / a0;
+    iir_coeffs[band_num][4] = a2 / a0;
+    ESP_LOGI("update_gain", "band %d gain %f", band_num, gain);
+}
+
 void generate_EQ_filters(float* gains_arr, float* edges, float* q_factors)
 {
     for (int i = 0; i < EQ_BANDS; i++)
     {
         float center_f = 0;
-        if (i == 0)
+        if (edges[i] == 0)
         {
             center_f = (edges[i] + edges[i+1]) / 2; //  arithmetic mean 
         }
@@ -49,9 +75,30 @@ void generate_EQ_filters(float* gains_arr, float* edges, float* q_factors)
             center_f = sqrt(edges[i] * edges[i+1]); // geometric mean
         }
 
-        float q_factor = 1 * center_f / (edges[i+1] - edges[i]);
+        //float q_factor = 0.707 * center_f / (edges[i+1] - edges[i]);
+        
+        if (1)
+        {
+            float w0 = 2 * M_PI * center_f / SAMPLE_RATE;
+            float alpha = sin(w0) / (2 * q_factors[i]);
+            float A = sqrt(gains_arr[i]);
 
-        if (dsps_biquad_gen_peakingEQ_f32(iir_coeffs[i], center_f / SAMPLE_RATE, q_factor) == ESP_OK)
+            float b0 = 1 + alpha * A;
+            float b1 = -2 * cos(w0);
+            float b2 = 1 - alpha * A;
+            float a0 = 1 + alpha / A;
+            float a1 = -2 * cos(w0);
+            float a2 = 1 - alpha / A;
+
+            iir_coeffs[i][0] = b0 / a0;
+            iir_coeffs[i][1] = b1 / a0;
+            iir_coeffs[i][2] = b2 / a0;
+            iir_coeffs[i][3] = a1 / a0;
+            iir_coeffs[i][4] = a2 / a0;
+            ESP_LOGI("IIR FILTERS", "Created Filter. Range [%.0f, %.0f] Gain %.2f Q %.2f", edges[i], edges[i+1], gains_arr[i], q_factors[i]);
+        }
+
+        else if (dsps_biquad_gen_bpf_f32(iir_coeffs[i], center_f / SAMPLE_RATE, q_factors[i]) == ESP_OK)
         {
             ESP_LOGI("IIR FILTERS", "Successfully Created Filter. Range [%.0f, %.0f] Gain %.2f", edges[i], edges[i+1], gains_arr[i]);
         }
@@ -67,17 +114,17 @@ void generate_EQ_filters(float* gains_arr, float* edges, float* q_factors)
 static __attribute__((aligned(16))) float temp_out[BUF_SIZE];
 void apply_EQ(float* input, float* output, float* eq_gains, int len)
 {
-    memset(output, 0, BUF_SIZE * sizeof(*iir_out));
+    memcpy(output, input, len * sizeof(*output));
 
-    //float temp_out[BUF_SIZE];
     for (int i = 0; i < EQ_BANDS; i++) // for each band
     {
+        dsps_biquad_f32(output, output, len, iir_coeffs[i], iir_delay[i]);
+       /* 
         dsps_biquad_f32(input, temp_out, len, iir_coeffs[i], iir_delay[i]);
-        //ESP_LOGI("iir filter", "%.2f", eq_gains[i]);
         for (int j = 0; j < BUF_SIZE; j++) // for each element in the buffer in this band apply gain
         {
-            output[j] += temp_out[j] * eq_gains[i] / EQ_BANDS;
-        }
+            output[j] += temp_out[j] / EQ_BANDS;// eq_gains[i] / EQ_BANDS;
+        }*/
     }
 }
 
@@ -129,7 +176,6 @@ void i2s_example_read_task(void *pvParameters)
 {
     static int32_t raw_rx_buf[2* BUF_SIZE];
     size_t bytes_read = 0;
-
     ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_adc)); // enable adc
     ESP_ERROR_CHECK(i2s_channel_enable(rx_chan_bt)); // enable bt
 
@@ -137,20 +183,23 @@ void i2s_example_read_task(void *pvParameters)
 
     while(true) {
         i2s_chan_handle_t input_i2s_handle = (input_select == AUX) ? rx_chan_adc : rx_chan_bt;
+        uint8_t bytes_multiplier = (input_select == AUX) ? 2 : 1;
 
-        if (i2s_channel_read(input_i2s_handle, raw_rx_buf, BUF_SIZE * 2 * sizeof(int32_t), &bytes_read, portMAX_DELAY) == ESP_OK)
+        if (i2s_channel_read(input_i2s_handle, raw_rx_buf, BUF_SIZE * bytes_multiplier * sizeof(int32_t), &bytes_read, portMAX_DELAY) == ESP_OK)
         {
             int buf_idx;
-            xQueueReceive(free_queue, &buf_idx, portMAX_DELAY);
+
+            if (xQueueReceive(free_queue, &buf_idx, pdMS_TO_TICKS(10)) != pdPASS)
+            {
+                ESP_LOGE("i2s_read", "free_queue timeout -- too slow");
+            }
+
             int16_t* data = buffer_pool[buf_idx].data;
 
             int samples_read = bytes_read / sizeof(int32_t); // = BUF_SIZE * 2
             int block_idx = 0;
             int sum = 0;
 
-            //  BE CAREFUL BE CAREFYL BE CAREFUL i+= 2 samples only L for ADC (32 bitwidth) but skips samples for bluetooth (16 bit width)
-            //  Every sample from raw_rx_buf reads in 32 bits.
-            //  Data Format for ADC {32 bits (L) |  32 bits (R)} for Bluetooth {16 bits (L) | 16 bits (R)} BE CAREFUL 
             for (int i = 0; i < samples_read; i++)     
             {
                 if (input_select == AUX)
@@ -160,7 +209,7 @@ void i2s_example_read_task(void *pvParameters)
                 }
                 else if (input_select == BLUETOOTH)
                 {
-                    data[block_idx]  = (int16_t)(raw_rx_buf[i]);
+                    data[block_idx]  = (int16_t)(raw_rx_buf[i] >> 16);
                 }
 
                 sum += data[block_idx];
@@ -170,6 +219,7 @@ void i2s_example_read_task(void *pvParameters)
             // send buffer to process
             running_buf_avg = sum / BUF_SIZE;
 
+            //ESP_LOGI("time between i2s buffers INPUT", "%f ms", 1000 * (current_time - prev_time) / (float)160000000);
             if(xQueueSend(process_queue, &buf_idx, portMAX_DELAY) != pdPASS)
             {
                 ESP_LOGE(TAG, "PROCESS QUEUE FULL -- DSP TOO SLOW");
@@ -193,14 +243,15 @@ void i2s_example_write_task(void *args)
             int16_t* data_out = buffer_pool[buf_idx].data;
             for (int i = 0; i < (BUF_SIZE); i++)
             {
-                int32_t sample = (int32_t)data_out[i];
+                int32_t sample = (int32_t)((volume/10.0)*data_out[i]);
                 out_sum += sample;
-                int32_t s32 = sample << 16;
+                int32_t s32 = (sample) << 16;
                 i2s_buf[2*i]     = s32; // Left
                 i2s_buf[2*i + 1] = s32; // Right
             }
 
             /* Write i2s data */
+            //ESP_LOGI("output", "%d", out_sum / BUF_SIZE);
             if (i2s_channel_write(tx_chan, i2s_buf, BUF_SIZE*2*sizeof(int32_t), &bytes_written, portMAX_DELAY) != ESP_OK) 
             {
                 ESP_LOGI("I2S OUTPUT", "Write Task: i2s write failed\n");
@@ -208,6 +259,11 @@ void i2s_example_write_task(void *args)
 
             xQueueSend(free_queue, &buf_idx, portMAX_DELAY);
         }
+        else
+        {
+            ESP_LOGI("output queue", "failed to receive");
+        }
+
     }
     vTaskDelete(NULL);
 }
@@ -232,7 +288,7 @@ void task_dsp(void *pvParameters)
             }
 
             apply_EQ(iir_in, iir_out, eq_gains, BUF_SIZE); // FILTERING 
-
+                                                           
             //filling filtered signals out to output & spectrum
             for (int i = 0; i < BUF_SIZE; i++)
             {
@@ -240,13 +296,14 @@ void task_dsp(void *pvParameters)
                 spectrum_buffer[i] = (int16_t) (iir_out[i]);
             }
 
-            fft(BUF_SIZE, spectrum_buffer, spectrum, sample_spacing);
-            spec2bins(N, NUM_BINS, spectrum, spec_binned);
-
             if (xQueueSend(output_queue, &buf_idx, portMAX_DELAY) != pdPASS)
             {
                 ESP_LOGI("xQueueSend DSP -> Out", "Failed to Send index to output from dsp"); 
             }
+
+            fft(BUF_SIZE, spectrum_buffer, spectrum, sample_spacing);
+            spec2bins(N, NUM_BINS, spectrum, spec_binned);
+
             count++;
 
             if (count >= 20)
@@ -259,8 +316,7 @@ void task_dsp(void *pvParameters)
 
                     xTaskNotifyGive(oled_task_handle);
                 }
-            }
-            
+            }   
         }
     }
 }
@@ -289,7 +345,7 @@ void task_oled(void *pvParameters)
 void print_to_OLED(int num_bins, float* spectrum_binned)
 {
     float max = 10.0;
-    float min = -15.0;
+    float min = -20.0;
 
     //ESP_LOGE(TAG, "Spectrum Binned: %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f", spectrum_binned[0], spectrum_binned[1], spectrum_binned[2], spectrum_binned[3], spectrum_binned[4], spectrum_binned[5], spectrum_binned[6], spectrum_binned[7]);
     for (int i = 0; i < NUM_BINS; i++)
@@ -306,12 +362,6 @@ void print_to_OLED(int num_bins, float* spectrum_binned)
 //----------PUBLIC DSP INITIALIZATION----------
 esp_err_t dsp_init(void)
 {
-    // for (int i = 0; i < EQ_BANDS; i++)
-    // {
-    //     ESP_LOGI("eq_gains", "%.2f", eq_gains[i]);
-    //     eq_gains[i] = 1;
-    // }
-
     vTaskDelay(pdMS_TO_TICKS(1000));
     init_double_buffer();
     spectrum_mutex = xSemaphoreCreateMutex();
@@ -321,6 +371,10 @@ esp_err_t dsp_init(void)
     ESP_ERROR_CHECK(dsps_fft4r_init_fc32(NULL, 2*BUF_SIZE)); // Initialize FFT4R
 
     //-----------------IIR FILTER INITIALIZATION---------------------
+    for (int i = 0; i < EQ_BANDS; i++)
+    {
+        eq_gains[i] = 1;
+    }
     generate_EQ_filters(eq_gains, band_edges, q_factors);
     ESP_LOGI(TAG, "IIR INITIALIZED -- COEFFICIENTS SET");
     

@@ -8,6 +8,7 @@
 #include "1602A_OLED.h"
 #include "global_defs.h"
 #include "global_vars.h"
+#include "dsp.h"
 
 typedef enum {
     MENU_MAIN,
