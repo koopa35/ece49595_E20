@@ -12,7 +12,7 @@ float eq_gains[EQ_BANDS] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 float band_edges[EQ_BANDS + 1] = {20.0, 100.0, 320.0, 1000.0, 2500.0, 5000.0, 10000.0, 15000.0, SAMPLE_RATE/2};
 int freq_bins[] = {0, 100, 350, 700, 1100, 1600, 2200, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10500, 12000, SAMPLE_RATE/2};
 
-float q_factors[EQ_BANDS] = {0.7, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7};
+float q_factors[EQ_BANDS] = {1.0, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7, 1.7};
 float iir_coeffs[EQ_BANDS][5];
 float iir_delay[EQ_BANDS][2];
 

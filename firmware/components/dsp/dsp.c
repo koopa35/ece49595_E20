@@ -243,7 +243,7 @@ void i2s_example_write_task(void *args)
             int16_t* data_out = buffer_pool[buf_idx].data;
             for (int i = 0; i < (BUF_SIZE); i++)
             {
-                int32_t sample = (int32_t)((volume/10.0)*data_out[i]);
+                int32_t sample = (int32_t)((volume/50.0)*data_out[i]);
                 out_sum += sample;
                 int32_t s32 = (sample) << 16;
                 i2s_buf[2*i]     = s32; // Left
