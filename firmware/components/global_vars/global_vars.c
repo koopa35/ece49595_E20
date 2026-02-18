@@ -40,7 +40,6 @@ SemaphoreHandle_t spectrum_mutex = NULL;
 TaskHandle_t sampling_task_handle = NULL;
 TaskHandle_t processing_task_handle = NULL;
 TaskHandle_t output_task_handle = NULL;
-TaskHandle_t oled_task_handle = NULL;
 
 bool input_select = BLUETOOTH;
 bool display_power = ON;

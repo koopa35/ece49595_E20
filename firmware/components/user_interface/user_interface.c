@@ -133,6 +133,7 @@ void menu_task(void *pvParameters)
                 // both buttons pressed: reset EQ to default values
                 for (int i = 0; i < EQ_BANDS; i++) {
                     eq_gains[i] = 1.0;
+                    update_coeffs(i, eq_gains[i]);
                 }
                 need_refresh = true;         
             } else {

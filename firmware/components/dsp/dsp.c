@@ -308,54 +308,22 @@ void task_dsp(void *pvParameters)
 
             if (count >= 20)
             {
-                if (xSemaphoreTake(spectrum_mutex, 0) == pdPASS)
-                {
-                    memcpy(latest_spectrum, spec_binned, sizeof(latest_spectrum));
-                    xSemaphoreGive(spectrum_mutex);
-                    count = 0;
+                count = 0;
+                float max = 10.0;
+                float min = -20.0;
 
-                    xTaskNotifyGive(oled_task_handle);
+                //ESP_LOGE(TAG, "Spectrum Binned: %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f", spectrum_binned[0], spectrum_binned[1], spectrum_binned[2], spectrum_binned[3], spectrum_binned[4], spectrum_binned[5], spectrum_binned[6], spectrum_binned[7]);
+                for (int i = 0; i < NUM_BINS; i++)
+                {
+                    float val = spec_binned[i];
+                    val = val < min ? min : val;
+                    val = val > max ? max : val;
+
+                    float normalized_val = (val - min) / (max - min);
+                    spectrum_norm[i] = (uint8_t) (7.0 * normalized_val);
                 }
             }   
         }
-    }
-}
-
-//----------OLED DISPLAY TASK----------
-void task_oled(void *pvParameters)
-{
-    float spec_binned[NUM_BINS];
-
-
-    while (1)
-    {
-        if(ulTaskNotifyTake(pdTRUE, portMAX_DELAY))
-        {
-            // wait for new spectrum data from DSP task
-            if (xSemaphoreTake(spectrum_mutex, pdMS_TO_TICKS(20)) == pdPASS)
-            {
-                memcpy(spec_binned, latest_spectrum, sizeof(spec_binned));
-                xSemaphoreGive(spectrum_mutex);
-                print_to_OLED(NUM_BINS, spec_binned);
-            }
-        }
-    }
-}
-
-void print_to_OLED(int num_bins, float* spectrum_binned)
-{
-    float max = 10.0;
-    float min = -20.0;
-
-    //ESP_LOGE(TAG, "Spectrum Binned: %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f", spectrum_binned[0], spectrum_binned[1], spectrum_binned[2], spectrum_binned[3], spectrum_binned[4], spectrum_binned[5], spectrum_binned[6], spectrum_binned[7]);
-    for (int i = 0; i < NUM_BINS; i++)
-    {
-        float val = spectrum_binned[i];
-        val = val < min ? min : val;
-        val = val > max ? max : val;
-
-        float normalized_val = (val - min) / (max - min);
-        spectrum_norm[i] = (uint8_t) (7.0 * normalized_val);
     }
 }
 
@@ -388,9 +356,6 @@ esp_err_t dsp_init(void)
     }
     //----------TASK CREATION--------------------------------
     xTaskCreate(task_dsp, "DSP", 24576, NULL, 5, &processing_task_handle);
-
-    //----------OLED SPECTRUM UPDATE TASK--------------------
-    xTaskCreate(task_oled, "task_oled", 4096, NULL, 4, &oled_task_handle);
 
     //------------------I2S INITIALIZATION--------------------
     i2s_example_init_std_duplex(&tx_chan, &rx_chan_adc); 
