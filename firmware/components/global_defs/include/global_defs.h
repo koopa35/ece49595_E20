@@ -62,6 +62,6 @@
 #define CLK_FREQ 160000000
 
 typedef struct {
-    int16_t data[BUF_SIZE];
+    int32_t data[BUF_SIZE];
     size_t length;
 } DataBlock;

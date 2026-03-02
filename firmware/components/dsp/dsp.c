@@ -26,9 +26,9 @@ static const char TAG[] = "i2s_out_plasma_spkr";
 //----------INITIALIZATION HELPERS----------
 static void init_double_buffer(void)
 {
-    memset(buffer_pool[0].data, 0, BUF_SIZE * sizeof(int16_t));
-    memset(buffer_pool[1].data, 0, BUF_SIZE * sizeof(int16_t));
-    memset(buffer_pool[2].data, 0, BUF_SIZE * sizeof(int16_t));
+    memset(buffer_pool[0].data, 0, BUF_SIZE * sizeof(int32_t));
+    memset(buffer_pool[1].data, 0, BUF_SIZE * sizeof(int32_t));
+    memset(buffer_pool[2].data, 0, BUF_SIZE * sizeof(int32_t));
 
     buffer_pool[0].length = BUF_SIZE;
     buffer_pool[1].length = BUF_SIZE;
@@ -195,7 +195,7 @@ void i2s_example_read_task(void *pvParameters)
                 ESP_LOGE("i2s_read", "free_queue timeout -- too slow");
             }
 
-            int16_t* data = buffer_pool[buf_idx].data;
+            int32_t* data = buffer_pool[buf_idx].data;
 
             int samples_read = bytes_read / sizeof(int32_t); // = BUF_SIZE * 2
             int block_idx = 0;
@@ -205,9 +205,9 @@ void i2s_example_read_task(void *pvParameters)
             {
                 for (int i = 0; i < samples_read; i++)     
                 {
-                    int16_t left = (int16_t) (raw_rx_buf[i] >> 16);
+                    int32_t left = (int32_t) (raw_rx_buf[i] >> 8);
                     i++;
-                    int16_t right = (int16_t) (raw_rx_buf[i] >> 16);
+                    int32_t right = (int32_t) (raw_rx_buf[i] >> 8);
                     data[block_idx]  = ((left + right ) / 2);
 
                     sum += data[block_idx];
@@ -219,8 +219,8 @@ void i2s_example_read_task(void *pvParameters)
             {
                 for (int i = 0; i < samples_read; i++)
                 {
-                    int16_t left =   (int16_t)(raw_rx_buf[i] & 0xFFFF);
-                    int16_t right =  (int16_t) ( (raw_rx_buf[i] >> 16 ) & 0xFFFF);
+                    int32_t left =   (int16_t)((raw_rx_buf[i] & 0xFFFF));
+                    int32_t right =  (int16_t) (( (raw_rx_buf[i] >> 16 ) & 0xFFFF));
                     data[block_idx]  = (left + right )/2;
 
                     sum += data[block_idx];
@@ -254,13 +254,14 @@ void i2s_example_write_task(void *args)
             float volume_scale = (input_select == AUX) ? 1 : 5;
 
             int32_t out_sum = 0;
-            int16_t* data_out = buffer_pool[buf_idx].data;
+            int32_t* data_out = buffer_pool[buf_idx].data;
             for (int i = 0; i < (BUF_SIZE); i++)
             {
+                data_out[i] = (input_select == AUX) ? data_out[i] << 7 : data_out[i] << 16;
                 int32_t sample = (int32_t)((volume/(50.0*volume_scale))*data_out[i]);
                 out_sum += sample;
-                i2s_buf[2*i]     = sample << 16; // Left
-                i2s_buf[2*i + 1] = sample << 16; // Right
+                i2s_buf[2*i]     = sample; // Left
+                i2s_buf[2*i + 1] = sample; // Right
             }
 
             /* Write i2s data */
@@ -292,7 +293,7 @@ void task_dsp(void *pvParameters)
     while (true){
         if (xQueueReceive(process_queue, &buf_idx, portMAX_DELAY))
         {
-            int16_t* dsp_current_buffer = buffer_pool[buf_idx].data;
+            int32_t* dsp_current_buffer = buffer_pool[buf_idx].data;
 
             // convert adc ints to floats for filtering 
             
@@ -307,8 +308,10 @@ void task_dsp(void *pvParameters)
             for (int i = 0; i < BUF_SIZE; i++)
             {
                 //float out_sample = iir_out[i];
-                dsp_current_buffer[i] = (int16_t) (iir_out[i]);
-                spectrum_buffer[i] = (int16_t) (iir_out[i]);
+                dsp_current_buffer[i] = (int32_t) (iir_out[i]);
+                spectrum_buffer[i] = (input_select == AUX) ? (int16_t) (iir_out[i] / 256) : (int16_t) iir_out[i];
+
+
                 //int idx = (int) (9 *  (out_sample + 32767.0) / 65536.0);
                 //idx = (idx > 9) ? 9 : (idx < 0) ? 0 : idx;
                 //dsp_current_buffer[i] *= predistortion[idx];
