@@ -19,6 +19,7 @@
 #include "1602A_OLED.h"
 #include "user_interface.h"
 
+float predistortion[10] = {1,1,1,1,1,1,0.9,0.9,0.8,0.7};
 //----------LOGGING----------
 static const char TAG[] = "i2s_out_plasma_spkr";
 
@@ -189,7 +190,7 @@ void i2s_example_read_task(void *pvParameters)
         {
             int buf_idx;
 
-            if (xQueueReceive(free_queue, &buf_idx, pdMS_TO_TICKS(10)) != pdPASS)
+            if (xQueueReceive(free_queue, &buf_idx, pdMS_TO_TICKS(20)) != pdPASS)
             {
                 ESP_LOGE("i2s_read", "free_queue timeout -- too slow");
             }
@@ -199,21 +200,32 @@ void i2s_example_read_task(void *pvParameters)
             int samples_read = bytes_read / sizeof(int32_t); // = BUF_SIZE * 2
             int block_idx = 0;
             int sum = 0;
-
-            for (int i = 0; i < samples_read; i++)     
+            
+            if (input_select == AUX)
             {
-                if (input_select == AUX)
+                for (int i = 0; i < samples_read; i++)     
                 {
-                    data[block_idx]  = (int16_t)(raw_rx_buf[i] >> 16);
+                    int16_t left = (int16_t) (raw_rx_buf[i] >> 16);
                     i++;
-                }
-                else if (input_select == BLUETOOTH)
-                {
-                    data[block_idx]  = (int16_t)(raw_rx_buf[i] >> 16);
-                }
+                    int16_t right = (int16_t) (raw_rx_buf[i] >> 16);
+                    data[block_idx]  = ((left + right ) / 2);
 
-                sum += data[block_idx];
-                block_idx++;
+                    sum += data[block_idx];
+                    block_idx++;
+                }
+            }
+
+            else if (input_select == BLUETOOTH)
+            {
+                for (int i = 0; i < samples_read; i++)
+                {
+                    int16_t left =   (int16_t)(raw_rx_buf[i] & 0xFFFF);
+                    int16_t right =  (int16_t) ( (raw_rx_buf[i] >> 16 ) & 0xFFFF);
+                    data[block_idx]  = (left + right )/2;
+
+                    sum += data[block_idx];
+                    block_idx++;
+                }
             }
 
             // send buffer to process
@@ -239,15 +251,16 @@ void i2s_example_write_task(void *args)
     while (1) {
         if (xQueueReceive(output_queue, &buf_idx, portMAX_DELAY) == pdPASS)
         {
+            float volume_scale = (input_select == AUX) ? 1 : 5;
+
             int32_t out_sum = 0;
             int16_t* data_out = buffer_pool[buf_idx].data;
             for (int i = 0; i < (BUF_SIZE); i++)
             {
-                int32_t sample = (int32_t)((volume/50.0)*data_out[i]);
+                int32_t sample = (int32_t)((volume/(50.0*volume_scale))*data_out[i]);
                 out_sum += sample;
-                int32_t s32 = (sample) << 16;
-                i2s_buf[2*i]     = s32; // Left
-                i2s_buf[2*i + 1] = s32; // Right
+                i2s_buf[2*i]     = sample << 16; // Left
+                i2s_buf[2*i + 1] = sample << 16; // Right
             }
 
             /* Write i2s data */
@@ -281,7 +294,8 @@ void task_dsp(void *pvParameters)
         {
             int16_t* dsp_current_buffer = buffer_pool[buf_idx].data;
 
-            // convert adc ints to floats for filtering
+            // convert adc ints to floats for filtering 
+            
             for (int i = 0; i < BUF_SIZE; i++)
             {
                 iir_in[i] = (float)dsp_current_buffer[i];
@@ -292,8 +306,12 @@ void task_dsp(void *pvParameters)
             //filling filtered signals out to output & spectrum
             for (int i = 0; i < BUF_SIZE; i++)
             {
-                dsp_current_buffer[i] = (int16_t) (iir_out[i]); 
+                //float out_sample = iir_out[i];
+                dsp_current_buffer[i] = (int16_t) (iir_out[i]);
                 spectrum_buffer[i] = (int16_t) (iir_out[i]);
+                //int idx = (int) (9 *  (out_sample + 32767.0) / 65536.0);
+                //idx = (idx > 9) ? 9 : (idx < 0) ? 0 : idx;
+                //dsp_current_buffer[i] *= predistortion[idx];
             }
 
             if (xQueueSend(output_queue, &buf_idx, portMAX_DELAY) != pdPASS)
@@ -305,14 +323,14 @@ void task_dsp(void *pvParameters)
             spec2bins(N, NUM_BINS, spectrum, spec_binned);
 
             count++;
-
+            
             if (count >= 20)
             {
                 count = 0;
-                float max = 10.0;
+                float max = 15.0;
                 float min = -20.0;
 
-                //ESP_LOGE(TAG, "Spectrum Binned: %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f", spectrum_binned[0], spectrum_binned[1], spectrum_binned[2], spectrum_binned[3], spectrum_binned[4], spectrum_binned[5], spectrum_binned[6], spectrum_binned[7]);
+                //ESP_LOGE(TAG, "Spectrum Binned: %.2f %.2f %.2f %.2f %d %d %d %d", spec_binned[0], spec_binned[1], spec_binned[2], spec_binned[3], spectrum_norm[0], spectrum_norm[1], spectrum_norm[2], spectrum_norm[3]);
                 for (int i = 0; i < NUM_BINS; i++)
                 {
                     float val = spec_binned[i];
@@ -355,7 +373,7 @@ esp_err_t dsp_init(void)
         xQueueSend(free_queue, &i, 0);
     }
     //----------TASK CREATION--------------------------------
-    xTaskCreate(task_dsp, "DSP", 24576, NULL, 5, &processing_task_handle);
+    xTaskCreate(task_dsp, "DSP", 32768, NULL, 5, &processing_task_handle);
 
     //------------------I2S INITIALIZATION--------------------
     i2s_example_init_std_duplex(&tx_chan, &rx_chan_adc); 
