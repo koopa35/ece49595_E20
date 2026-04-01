@@ -6,6 +6,7 @@
 #include "freertos/task.h"
 #include "global_defs.h"
 #include "global_vars.h"
+#include "ina260.h"
 
 #define VOLUME_ADDR 0x00
 #define RUNTIME_ADDR 0x10
@@ -135,6 +136,8 @@ void eeprom_24xx_task(void *pvParameters)
             prev_runtime_total_sec = runtime_total_sec;
         }
 
+        //ESP_ERROR_CHECK(read_ina260_CVP(1000));
+        read_ina260_CVP(1000);
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }

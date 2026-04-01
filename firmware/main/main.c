@@ -43,7 +43,7 @@ void app_main(void)
     i2c_master_init();
     vTaskDelay(pdMS_TO_TICKS(100));
     ESP_ERROR_CHECK(eeprom_24xx_load(&eeprom_dev));
-    xTaskCreate(eeprom_24xx_task, "eeprom_task", 4096, NULL, 5, NULL);
+    xTaskCreate(eeprom_24xx_task, "eeprom_task", 4096, NULL, 3, NULL);
     vTaskDelay(pdMS_TO_TICKS(100));
             
 

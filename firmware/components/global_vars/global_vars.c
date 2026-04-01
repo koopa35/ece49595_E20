@@ -43,6 +43,7 @@ TaskHandle_t output_task_handle = NULL;
 
 bool input_select = BLUETOOTH;
 bool display_power = ON;
+bool predistortion = ON;
 
 char current_track[STR_LEN] = "Song Title";
 char current_artist[STR_LEN] = "Artist Name";

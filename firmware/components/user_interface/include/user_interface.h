@@ -17,7 +17,8 @@ typedef enum {
     MENU_EQ,
     MENU_INPUT_SELECT,
     MENU_PIVT,
-    MENU_RUNTIME
+    MENU_RUNTIME,
+    MENU_PD
 } menu_type_t;
 
 esp_err_t draw_menu(spi_device_handle_t spi_oled, uint8_t cursor, menu_type_t menu);

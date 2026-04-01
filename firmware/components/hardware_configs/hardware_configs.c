@@ -89,6 +89,10 @@ eeprom_24xx_t eeprom_dev = {
     .timeout_ms = 1000
 };
 
+// Current Sense device instance
+//
+
+
 
 //----------AUDIO DSP---------------//
 

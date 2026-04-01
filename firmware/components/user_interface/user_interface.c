@@ -3,13 +3,14 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define MAIN_MENU_ITEMS 7
+#define MAIN_MENU_ITEMS 8
 #define VOLUME_MENU_ITEMS 1
 #define METADATA_MENU_ITEMS 3
 #define EQ_MENU_ITEMS 8
 #define INPUT_SELECT_MENU_ITEMS 1
 #define PIVT_MENU_ITEMS 4
 #define RUNTIME_MENU_ITEMS 2
+#define PREDISTORTION_MENU_ITEMS 1
 
 static const char main_menu[][STR_LEN] = {
     "-Plasma Tweeter-",
@@ -19,6 +20,7 @@ static const char main_menu[][STR_LEN] = {
     " 4. Input Select",
     " 5. P/I/V/Temp  ",
     " 6. Runtime     ",
+    " 7. Predistort",
     ""
 };
 
@@ -116,7 +118,7 @@ void menu_task(void *pvParameters)
         } else {
             set_cursor(spi_oled2, 0, 0);
             print(spi_oled2, "--- Spectrum ---");
-            freq(spi_oled2, spectrum_norm, 16);
+            freq(spi_oled2, spectrum_norm, 16); 
         }
 
         // check for source select change
@@ -173,6 +175,9 @@ void menu_task(void *pvParameters)
                         current_menu = MENU_RUNTIME;
                         in_sub_menu = true;
                         break;
+                    case 7:
+                        current_menu = MENU_PD;
+                        in_sub_menu = true;
                     default:
                         break;
                 }
@@ -204,6 +209,11 @@ void menu_task(void *pvParameters)
                     need_refresh = true;
                     update_coeffs(cursor, eq_gains[cursor]);
                     break;
+                case MENU_PD :
+                    predistortion = (predistortion == ON) ? OFF : ON;
+                    ESP_LOGI("PD", "PD Status: %d", predistortion);
+                    need_refresh = true;
+
                 default :
                     break;
             
@@ -221,7 +231,8 @@ void menu_task(void *pvParameters)
             (current_menu == MENU_EQ) ? EQ_MENU_ITEMS :
             (current_menu == MENU_INPUT_SELECT) ? INPUT_SELECT_MENU_ITEMS :
             (current_menu == MENU_PIVT) ? PIVT_MENU_ITEMS :
-            (current_menu == MENU_RUNTIME) ? RUNTIME_MENU_ITEMS : 1
+            (current_menu == MENU_RUNTIME) ? RUNTIME_MENU_ITEMS : 
+            (current_menu == MENU_PD) ? PREDISTORTION_MENU_ITEMS : 1
         );
 
         // update display if cursor changed
@@ -235,7 +246,7 @@ void menu_task(void *pvParameters)
             need_refresh = false;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(250));
     }
 }
 
@@ -367,6 +378,18 @@ esp_err_t draw_menu(spi_device_handle_t spi_oled1, uint8_t cursor, menu_type_t m
                     print(spi_oled1, change_str);
                 }
             }
+            break;
+        case MENU_PD :
+            for (int row = 0; row < 2; row++) {
+                uint8_t idx = cursor + row;
+                set_cursor(spi_oled1, row, 0);
+
+                if (idx == 0) {
+                    char pd_str[STR_LEN];
+                    snprintf(pd_str, STR_LEN, "Predistort.: %*s", 3, predistortion ? "ON " : "OFF");
+                    print(spi_oled1, pd_str);
+                }
+            } 
             break;
         default :
             break;

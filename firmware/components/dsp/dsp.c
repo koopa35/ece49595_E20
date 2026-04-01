@@ -19,7 +19,7 @@
 #include "1602A_OLED.h"
 #include "user_interface.h"
 
-float predistortion[10] = {1,1,1,1,1,1,0.9,0.9,0.8,0.7};
+float PDTable[3] = {1.25,-0.25, 0 };
 //----------LOGGING----------
 static const char TAG[] = "i2s_out_plasma_spkr";
 
@@ -289,6 +289,7 @@ void task_dsp(void *pvParameters)
     float sample_spacing = 1.0 / SAMPLE_RATE;
     int count = 0;
     static int16_t spectrum_buffer[BUF_SIZE];
+    int refresh_count = 50;
 
     while (true){
         if (xQueueReceive(process_queue, &buf_idx, portMAX_DELAY))
@@ -302,47 +303,74 @@ void task_dsp(void *pvParameters)
                 iir_in[i] = (float)dsp_current_buffer[i];
             }
 
+            uint32_t eq_start = esp_cpu_get_cycle_count();
             apply_EQ(iir_in, iir_out, eq_gains, BUF_SIZE); // FILTERING 
-                                                           
+            uint32_t eq_end = esp_cpu_get_cycle_count();
+
             //filling filtered signals out to output & spectrum
+            uint32_t pd_start = esp_cpu_get_cycle_count();
             for (int i = 0; i < BUF_SIZE; i++)
             {
-                //float out_sample = iir_out[i];
-                dsp_current_buffer[i] = (int32_t) (iir_out[i]);
+                if (predistortion == ON)
+                {
+                    float norm_const = (input_select == AUX) ? 8388608.0f : 32768.0f;
+                    float snorm = iir_out[i] / norm_const;
+                    float sample_PD = PDTable[0]*snorm + PDTable[1]*snorm*snorm*snorm + PDTable[2]*snorm*snorm*snorm*snorm*snorm;
+                    sample_PD = sample_PD > 1.0f ? 1.0f : sample_PD;
+                    sample_PD = sample_PD < -1.0f ? -1.0f : sample_PD;
+                    dsp_current_buffer[i] = (int32_t)( sample_PD*norm_const);
+                }
+
+                else
+                {
+                    dsp_current_buffer[i] = (int32_t) (iir_out[i]);
+                }
+
                 spectrum_buffer[i] = (input_select == AUX) ? (int16_t) (iir_out[i] / 256) : (int16_t) iir_out[i];
 
-
-                //int idx = (int) (9 *  (out_sample + 32767.0) / 65536.0);
-                //idx = (idx > 9) ? 9 : (idx < 0) ? 0 : idx;
-                //dsp_current_buffer[i] *= predistortion[idx];
             }
+            uint32_t pd_end = esp_cpu_get_cycle_count();
 
             if (xQueueSend(output_queue, &buf_idx, portMAX_DELAY) != pdPASS)
             {
                 ESP_LOGI("xQueueSend DSP -> Out", "Failed to Send index to output from dsp"); 
             }
 
+            uint32_t fft_start = esp_cpu_get_cycle_count();
             fft(BUF_SIZE, spectrum_buffer, spectrum, sample_spacing);
+            uint32_t s2b_start = esp_cpu_get_cycle_count();
             spec2bins(N, NUM_BINS, spectrum, spec_binned);
+            uint32_t s2b_end = esp_cpu_get_cycle_count();
 
             count++;
             
-            if (count >= 20)
+            if (count % refresh_count == 0)
             {
-                count = 0;
+                if (count % (5*refresh_count) == 0)
+                {
+                    count = 0;
+                    float eq_duration = 1000.0*(eq_end - eq_start) / CLK_FREQ;
+                    float fft_duration = 1000.0*(s2b_start - fft_start) / CLK_FREQ;
+                    float pd_duration = 1000.0*(pd_end - pd_start) / CLK_FREQ;
+                    float s2b_duration = 1000.0*(s2b_end - s2b_start) / CLK_FREQ;
+                    //ESP_LOGI("TIDRS", "Times to Compute (ms) : EQ %.2f, PD %.2f, FFT %.2f, Spec2Bins %.2f", eq_duration, pd_duration, fft_duration, s2b_duration);
+                    ESP_LOGI("CVP", "Current(A):%f, Voltage(V):%f, Power(W): %f", current, voltage,power);
+                }
+
                 float max = 15.0;
                 float min = -20.0;
 
                 //ESP_LOGE(TAG, "Spectrum Binned: %.2f %.2f %.2f %.2f %d %d %d %d", spec_binned[0], spec_binned[1], spec_binned[2], spec_binned[3], spectrum_norm[0], spectrum_norm[1], spectrum_norm[2], spectrum_norm[3]);
                 for (int i = 0; i < NUM_BINS; i++)
                 {
-                    float val = spec_binned[i];
+                    float val = (spec_binned[i] + 0.5*spectrum_norm[i]) / 1.5;
                     val = val < min ? min : val;
                     val = val > max ? max : val;
 
                     float normalized_val = (val - min) / (max - min);
                     spectrum_norm[i] = (uint8_t) (7.0 * normalized_val);
                 }
+                //freq(spi_oled2, spectrum_norm, 16);
             }   
         }
     }
@@ -360,17 +388,19 @@ esp_err_t dsp_init(void)
     ESP_ERROR_CHECK(dsps_fft4r_init_fc32(NULL, 2*BUF_SIZE)); // Initialize FFT4R
 
     //-----------------IIR FILTER INITIALIZATION---------------------
-    for (int i = 0; i < EQ_BANDS; i++)
-    {
-        eq_gains[i] = 1;
-    }
     generate_EQ_filters(eq_gains, band_edges, q_factors);
     ESP_LOGI(TAG, "IIR INITIALIZED -- COEFFICIENTS SET");
+    ESP_LOGI("predistortion coefficients", "[%.2f ,%.2f, %.2f]", PDTable[0], PDTable[1], PDTable[2]);
     
     //----------BUFFER QUEUE INIT FOR DATA TRANSFER----------
     process_queue = xQueueCreate(4, sizeof(int));
     output_queue = xQueueCreate(4, sizeof(int));
     free_queue = xQueueCreate(4, sizeof(int));
+    for (int i = 0; i < EQ_BANDS; i++)
+    {
+        ESP_LOGI("eq_gains in dsp init", "hardcoded band %d to have gain 1.5", i);
+        eq_gains[i] = 1.5;
+    }
     for (int i = 0; i < 3; i++)
     {
         xQueueSend(free_queue, &i, 0);

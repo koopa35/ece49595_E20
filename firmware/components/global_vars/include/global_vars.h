@@ -54,6 +54,7 @@ extern TaskHandle_t oled_task_handle;
 
 extern bool input_select;
 extern bool display_power;
+extern bool predistortion;
 
 extern char current_track[STR_LEN];
 extern char current_artist[STR_LEN];
