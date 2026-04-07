@@ -353,14 +353,14 @@ void task_dsp(void *pvParameters)
                     float fft_duration = 1000.0*(s2b_start - fft_start) / CLK_FREQ;
                     float pd_duration = 1000.0*(pd_end - pd_start) / CLK_FREQ;
                     float s2b_duration = 1000.0*(s2b_end - s2b_start) / CLK_FREQ;
-                    //ESP_LOGI("TIDRS", "Times to Compute (ms) : EQ %.2f, PD %.2f, FFT %.2f, Spec2Bins %.2f", eq_duration, pd_duration, fft_duration, s2b_duration);
+                    ESP_LOGI("TIDRS", "Times to Compute (ms) : EQ %.2f, PD %.2f, FFT %.2f, Spec2Bins %.2f", eq_duration, pd_duration, fft_duration, s2b_duration);
                     ESP_LOGI("CVP", "Current(A):%f, Voltage(V):%f, Power(W): %f", current, voltage,power);
                 }
 
                 float max = 15.0;
                 float min = -20.0;
 
-                //ESP_LOGE(TAG, "Spectrum Binned: %.2f %.2f %.2f %.2f %d %d %d %d", spec_binned[0], spec_binned[1], spec_binned[2], spec_binned[3], spectrum_norm[0], spectrum_norm[1], spectrum_norm[2], spectrum_norm[3]);
+                //ESP_LOGI(TAG, "Spectrum Binned: %.2f %.2f %.2f %.2f %d %d %d %d", spec_binned[0], spec_binned[1], spec_binned[2], spec_binned[3], spectrum_norm[0], spectrum_norm[1], spectrum_norm[2], spectrum_norm[3]);
                 for (int i = 0; i < NUM_BINS; i++)
                 {
                     float val = (spec_binned[i] + 0.5*spectrum_norm[i]) / 1.5;
@@ -370,7 +370,6 @@ void task_dsp(void *pvParameters)
                     float normalized_val = (val - min) / (max - min);
                     spectrum_norm[i] = (uint8_t) (7.0 * normalized_val);
                 }
-                //freq(spi_oled2, spectrum_norm, 16);
             }   
         }
     }
@@ -396,11 +395,7 @@ esp_err_t dsp_init(void)
     process_queue = xQueueCreate(4, sizeof(int));
     output_queue = xQueueCreate(4, sizeof(int));
     free_queue = xQueueCreate(4, sizeof(int));
-    for (int i = 0; i < EQ_BANDS; i++)
-    {
-        ESP_LOGI("eq_gains in dsp init", "hardcoded band %d to have gain 1.5", i);
-        eq_gains[i] = 1.5;
-    }
+
     for (int i = 0; i < 3; i++)
     {
         xQueueSend(free_queue, &i, 0);
