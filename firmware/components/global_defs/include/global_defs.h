@@ -27,7 +27,7 @@
 #define I2C_FREQ_HZ  10000
 
 // EEPROM Definitions
-#define EEPROM_ADDR  0x57
+#define EEPROM_ADDR  0x50
 #define EEPROM_SIZE_BYTES 4096
 #define EEPROM_MAX_ADDR   (EEPROM_SIZE_BYTES - 1)
 #define EEPROM_PAGE_SIZE  32
@@ -50,14 +50,24 @@
 #define NUM_BINS    16 
 #define SAMPLE_RATE 44100
 
-#define I2S_DUPLEX_MCLK 21
-#define I2S_DUPLEX_BCLK 38
-#define I2S_DUPLEX_WS   39
-#define I2S_DUPLEX_DOUT 40
-#define I2S_DUPLEX_DIN  37
+// #define I2S_DUPLEX_MCLK 21
+// #define I2S_DUPLEX_BCLK 38
+// #define I2S_DUPLEX_WS   39
+// #define I2S_DUPLEX_DOUT 40
+// #define I2S_DUPLEX_DIN  37
 
-#define I2S_SIMPLEX_BCLK 41
-#define I2S_SIMPLEX_WS   42
+// #define I2S_SIMPLEX_BCLK 41
+// #define I2S_SIMPLEX_WS   42
+// #define I2S_SIMPLEX_DIN  45
+
+#define I2S_DUPLEX_MCLK 37
+#define I2S_DUPLEX_BCLK 40
+#define I2S_DUPLEX_WS   39
+#define I2S_DUPLEX_DOUT 41
+#define I2S_DUPLEX_DIN  38
+
+#define I2S_SIMPLEX_BCLK 35
+#define I2S_SIMPLEX_WS   36
 #define I2S_SIMPLEX_DIN  45
 #define CLK_FREQ 160000000
 
