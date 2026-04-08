@@ -14,6 +14,10 @@
 #define SOURCE_SEL 13
 #define DISP_POWER 14
 
+// NTC pins
+#define NTC_1 11
+#define NTC_2 12
+
 // SPI Pins
 #define SCLK 4
 #define MOSI 5
@@ -49,16 +53,6 @@
 #define BUF_SIZE    256
 #define NUM_BINS    16 
 #define SAMPLE_RATE 44100
-
-// #define I2S_DUPLEX_MCLK 21
-// #define I2S_DUPLEX_BCLK 38
-// #define I2S_DUPLEX_WS   39
-// #define I2S_DUPLEX_DOUT 40
-// #define I2S_DUPLEX_DIN  37
-
-// #define I2S_SIMPLEX_BCLK 41
-// #define I2S_SIMPLEX_WS   42
-// #define I2S_SIMPLEX_DIN  45
 
 #define I2S_DUPLEX_MCLK 37
 #define I2S_DUPLEX_BCLK 40

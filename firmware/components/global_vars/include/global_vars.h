@@ -14,7 +14,8 @@
 extern float voltage;
 extern float current;
 extern float power;
-extern float temperature;
+extern float temperature1;
+extern float temperature2;
 
 extern uint16_t volume;
 

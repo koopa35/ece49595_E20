@@ -2,6 +2,7 @@
 
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
+#include "esp_adc/adc_oneshot.h"
 #include "driver/i2c.h"
 #include "driver/i2s_std.h"
 
@@ -11,6 +12,7 @@
 
 // Switch configuration
 extern gpio_config_t io_conf;
+extern gpio_config_t  ntc_io_conf;
 
 // Rotary encoder configuration
 extern rotary_config_t enc1;
@@ -29,7 +31,6 @@ extern i2s_std_config_t std_cfg_duplex;
 extern i2s_std_config_t std_cfg_simplex;
 
 extern eeprom_24xx_t eeprom_dev;
-
 
 
 // Init functions

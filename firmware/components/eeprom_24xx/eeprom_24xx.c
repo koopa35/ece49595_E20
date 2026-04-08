@@ -131,7 +131,7 @@ void eeprom_24xx_task(void *pvParameters)
             prev_volume = volume;
         }
 
-        if (prev_runtime_total_sec != runtime_total_sec && runtime_total_sec - prev_runtime_total_sec > 100) {
+        if (prev_runtime_total_sec != runtime_total_sec) {
             eeprom_24xx_write_bytes(&eeprom_dev, RUNTIME_ADDR, (const uint8_t *)&runtime_total_sec, sizeof(runtime_total_sec));
             prev_runtime_total_sec = runtime_total_sec;
         }

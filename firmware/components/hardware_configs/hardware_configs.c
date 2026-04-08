@@ -1,6 +1,15 @@
 #include <stdio.h>
 #include "hardware_configs.h"
 
+// NTC configuration
+gpio_config_t ntc_io_conf = {
+    .intr_type = GPIO_INTR_DISABLE,
+    .mode = GPIO_MODE_INPUT,
+    .pin_bit_mask = (1ULL<<NTC_1) | (1ULL<<NTC_2),
+    .pull_down_en = GPIO_PULLDOWN_DISABLE,
+    .pull_up_en = GPIO_PULLDOWN_DISABLE,
+    };
+
 // Switch configuration
 gpio_config_t io_conf = {
     .intr_type = GPIO_INTR_DISABLE,

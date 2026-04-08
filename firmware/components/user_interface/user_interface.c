@@ -8,7 +8,7 @@
 #define METADATA_MENU_ITEMS 3
 #define EQ_MENU_ITEMS 8
 #define INPUT_SELECT_MENU_ITEMS 1
-#define PIVT_MENU_ITEMS 4
+#define PIVT_MENU_ITEMS 5
 #define RUNTIME_MENU_ITEMS 2
 #define PREDISTORTION_MENU_ITEMS 1
 
@@ -34,7 +34,8 @@ static menu_type_t current_menu = MENU_MAIN;
 static bool update_10x = false;
 static bool prev_input_select = BLUETOOTH;
 static bool prev_display_power = ON;
-static uint32_t prev_runtime_total_sec = 0;
+static bool sent_to_vol = false;
+static TickType_t vol_enter_time = 0;
 
 typedef struct {
     spi_device_handle_t spi_oled1;
@@ -75,6 +76,8 @@ void menu_task(void *pvParameters)
 
     free(args);   // free early; task owns the data now
 
+    static uint8_t dynamic_menu_refresh_counter = 0;
+
     while (1) {
         // Handle display power state
         if (display_power == OFF) {
@@ -89,6 +92,30 @@ void menu_task(void *pvParameters)
             if (prev_display_power == OFF) {
                 need_refresh = true;
                 prev_display_power = ON;
+            }
+        }
+
+        // handle volume control from any menu
+        if (sent_to_vol) {
+            vol_enter_time = xTaskGetTickCount();
+            sent_to_vol = false;
+        }
+
+        if (current_menu == MENU_VOLUME) {
+            if (xTaskGetTickCount() - vol_enter_time > pdMS_TO_TICKS(500)) {
+                current_menu = MENU_MAIN;
+                in_sub_menu = false;
+                cursor = 0;
+                need_refresh = true;
+            }
+        }
+        
+        // Constantly update dynamic menus
+        dynamic_menu_refresh_counter++;
+        if (dynamic_menu_refresh_counter >= 4) {
+            dynamic_menu_refresh_counter = 0;
+            if (current_menu == MENU_PIVT || current_menu == MENU_RUNTIME) {
+                need_refresh = true;
             }
         }
 
@@ -132,10 +159,14 @@ void menu_task(void *pvParameters)
         // check for button press to enable 10x adjustments
         if (check_rotary_button_pressed(encoder_control)) {
             if (check_rotary_button_pressed(encoder_menu)) {
-                // both buttons pressed: reset EQ to default values
-                for (int i = 0; i < EQ_BANDS; i++) {
-                    eq_gains[i] = 1.0;
-                    update_coeffs(i, eq_gains[i]);
+                    if (current_menu == MENU_EQ) {
+                    for (int i = 0; i < EQ_BANDS; i++) {
+                        eq_gains[i] = 1.0;
+                        update_coeffs(i, eq_gains[i]);
+                    }
+                } else if (current_menu == MENU_RUNTIME) {
+                    runtime_total_sec = 0;
+                    next_change_sec = ELECTRODE_REPLACE_TIME;
                 }
                 need_refresh = true;         
             } else {
@@ -197,6 +228,10 @@ void menu_task(void *pvParameters)
             switch (current_menu) {
                 case MENU_MAIN :
                     volume = (volume + update > 100) ? 100 : (volume + update < 0) ? 0 : volume + update;
+                    current_menu = MENU_VOLUME;
+                    in_sub_menu = true;
+                    sent_to_vol = true;
+                    need_refresh = true;
                     break;
                 case MENU_VOLUME :
                     volume = (volume + update > 100) ? 100 : (volume + update < 0) ? 0 : volume + update;
@@ -238,6 +273,14 @@ void menu_task(void *pvParameters)
         // update display if cursor changed
         if (cursor != prev_cursor) {
             prev_cursor = cursor;
+            need_refresh = true;
+        }
+
+        // if runtime exceeds electrode lifespan, force switch to runtime menu
+        if (runtime_total_sec >= ELECTRODE_REPLACE_TIME) {
+            current_menu = MENU_RUNTIME;
+            in_sub_menu = true;
+            cursor = 0;
             need_refresh = true;
         }
 
@@ -342,41 +385,43 @@ esp_err_t draw_menu(spi_device_handle_t spi_oled1, uint8_t cursor, menu_type_t m
 
                 if (idx == 0) {
                     char pwr_str[STR_LEN];
-                    snprintf(pwr_str, STR_LEN, "PWR: %.1fW", power);
+                    snprintf(pwr_str, STR_LEN, "PWR: %.2fW", power);
                     print(spi_oled1, pwr_str);
                 } else if (idx == 1) {
                     char tmp_str[STR_LEN];
-                    snprintf(tmp_str, STR_LEN, "TMP: %.1fC", temperature);
+                    snprintf(tmp_str, STR_LEN, "TMP1: %.2fC", temperature1);
                     print(spi_oled1, tmp_str);
                 } else if (idx == 2) {
-                    char vdc_str[STR_LEN];
-                    snprintf(vdc_str, STR_LEN, "VDC: %.1fV", voltage);
-                    print(spi_oled1, vdc_str);
+                    char tmp_str[STR_LEN];
+                    snprintf(tmp_str, STR_LEN, "TMP2: %.2fC", temperature2);
+                    print(spi_oled1, tmp_str);
                 } else if (idx == 3) {
+                    char vdc_str[STR_LEN];
+                    snprintf(vdc_str, STR_LEN, "VDC: %.2fV", voltage);
+                    print(spi_oled1, vdc_str);
+                } else if (idx == 4) {
                     char idc_str[STR_LEN];
-                    snprintf(idc_str, STR_LEN, "IDC: %.1fA", current);
+                    snprintf(idc_str, STR_LEN, "IDC: %.2fA", current);
                     print(spi_oled1, idc_str);
                 }
             }
             break;
         case MENU_RUNTIME :
-            for (int row = 0; row < 2; row++) {
-                uint8_t idx = cursor + row;
-                set_cursor(spi_oled1, row, 0);
-
-                if (idx == 0) {
-                    char runtime_str[STR_LEN];
-                    int hours = runtime_total_sec / 3600;
-                    int minutes = (runtime_total_sec % 3600) / 60;
-                    snprintf(runtime_str, STR_LEN, "UP: %*d:%02d", 9, hours, minutes);
-                    print(spi_oled1, runtime_str);
-                } else if (idx == 1) {
-                    char change_str[STR_LEN];
-                    int nchours = next_change_sec / 3600;
-                    int nminutes = (next_change_sec % 3600) / 60;
-                    snprintf(change_str, STR_LEN, "CHNG: %*d:%02d", 7, nchours, nminutes);
-                    print(spi_oled1, change_str);
-                }
+            set_cursor(spi_oled1, 0, 0);
+            {
+                char runtime_str[STR_LEN];
+                int hours = runtime_total_sec / 3600;
+                int minutes = (runtime_total_sec % 3600) / 60;
+                snprintf(runtime_str, STR_LEN, "UP: %*d:%02d", 9, hours, minutes);
+                print(spi_oled1, runtime_str);
+            }
+            set_cursor(spi_oled1, 1, 0);
+            {
+                char change_str[STR_LEN];
+                int nchours = next_change_sec / 3600;
+                int nminutes = (next_change_sec % 3600) / 60;
+                snprintf(change_str, STR_LEN, "CHNG: %*d:%02d", 7, nchours, nminutes);
+                print(spi_oled1, change_str);
             }
             break;
         case MENU_PD :

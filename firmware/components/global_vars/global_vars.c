@@ -5,6 +5,8 @@ float voltage = 12.5;
 float current = 2.3;
 float power = 28.75;
 float temperature = 45.2;
+float temperature1 = 25.0;
+float temperature2 = 25.0;
 
 uint16_t volume = 67;
 

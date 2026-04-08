@@ -19,6 +19,7 @@
 #include "rotary_encoder.h"
 #include "user_interface.h"
 #include "dsp.h"
+#include "ntc.h"
 
 
 //----------APPLICATION ENTRY POINT----------
@@ -27,6 +28,9 @@ void app_main(void)
     //----------HARDWARE INITIALIZATION----------
     vTaskDelay(pdMS_TO_TICKS(100));
     ESP_ERROR_CHECK(gpio_config(&io_conf));
+    ESP_ERROR_CHECK(gpio_config(&ntc_io_conf));
+    ESP_ERROR_CHECK(ntc_init());
+
     spi_init();
     vTaskDelay(pdMS_TO_TICKS(100));
     
@@ -46,12 +50,8 @@ void app_main(void)
     xTaskCreate(eeprom_24xx_task, "eeprom_task", 4096, NULL, 3, NULL);
     vTaskDelay(pdMS_TO_TICKS(100));
             
-
-    for (int i = 0; i < EQ_BANDS; i++)
-    {
-        ESP_LOGI("eq_gains_after eeprom", "%.2f", eq_gains[i]);
-        //eq_gains[i] = 1;
-    }
+    runtime_total_sec = 0;
+    runtime_total_sec = ELECTRODE_REPLACE_TIME;
         
     //----------ROTARY ENCODER INITIALIZATION----------
     ESP_ERROR_CHECK(rotary_init(&enc1));
@@ -68,15 +68,14 @@ void app_main(void)
     while (1) {
         input_select = (gpio_get_level(SOURCE_SEL)) ? AUX : BLUETOOTH;
         display_power = (gpio_get_level(DISP_POWER)) ? OFF : ON;
-        
-        // Deprecated: used to persist `equalizer_band` (uint16_t). eq_gains (float[]) is persisted
-        // by the EEPROM task. Removing this write to avoid accidental corruption.
 
-        vTaskDelay(pdMS_TO_TICKS(100));
-
-        for (int i = 0; i < 10; i++) {
-            runtime_total_sec++;
+        if (runtime_total_sec < ELECTRODE_REPLACE_TIME) {
+            runtime_total_sec += 1;
             next_change_sec = ELECTRODE_REPLACE_TIME - runtime_total_sec;
         }
+        
+        ntc_read_temperatures();
+
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
